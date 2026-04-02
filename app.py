@@ -86,6 +86,8 @@ def check_code():
             'error': str(e)
         })
 
-
+@app.route('/api/tasks')
+def get_tasks():
+    return jsonify(TASKS)
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
