@@ -10,52 +10,46 @@
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background: #f5f5f5;
             padding: 16px;
         }
-
         .container {
             max-width: 600px;
             margin: 0 auto;
         }
-
         .task-list {
             background: white;
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 16px;
         }
-
         .task-item {
             padding: 12px;
             border-bottom: 1px solid #eee;
             cursor: pointer;
         }
-
         .task-item:last-child {
             border-bottom: none;
         }
-
+        .task-item:hover {
+            background: #f9f9f9;
+        }
         .task-title {
             font-weight: 600;
             margin-bottom: 4px;
         }
-
         .task-desc {
             font-size: 14px;
             color: #666;
         }
-
         .code-area {
             background: white;
             border-radius: 12px;
             padding: 16px;
             margin-top: 16px;
         }
-
         textarea {
             width: 100%;
             font-family: monospace;
@@ -65,7 +59,6 @@
             border-radius: 8px;
             margin-bottom: 12px;
         }
-
         button {
             background: #007aff;
             color: white;
@@ -75,32 +68,29 @@
             font-size: 16px;
             cursor: pointer;
         }
-
+        button:active {
+            background: #0051d5;
+        }
         .result {
             margin-top: 16px;
             padding: 12px;
             border-radius: 8px;
         }
-
         .result.correct {
             background: #d4edda;
             color: #155724;
         }
-
         .result.incorrect {
             background: #f8d7da;
             color: #721c24;
         }
-
         .back-btn {
             background: #6c757d;
             margin-bottom: 16px;
         }
-
         h2 {
             margin-bottom: 16px;
         }
-
         .input-example {
             background: #f0f0f0;
             padding: 12px;
@@ -116,7 +106,7 @@
             <h2>📚 Задания ОГЭ</h2>
             <div class="task-list" id="tasks"></div>
         </div>
-
+        
         <div id="task-view" style="display: none;">
             <button class="back-btn" onclick="showTaskList()">← Назад</button>
             <div class="code-area">
@@ -139,7 +129,7 @@
 
     <script>
         let currentTaskId = null;
-
+        
         fetch('/api/tasks')
             .then(res => res.json())
             .then(tasks => {
@@ -156,7 +146,7 @@
                     container.appendChild(div);
                 }
             });
-
+        
         function showTask(taskId) {
             currentTaskId = taskId;
             fetch(`/api/task/${taskId}`)
@@ -168,23 +158,23 @@
                     document.getElementById('expected-output').innerText = task.expected_output;
                     document.getElementById('code-input').value = '';
                     document.getElementById('result').innerHTML = '';
-
+                    
                     document.getElementById('task-list-view').style.display = 'none';
                     document.getElementById('task-view').style.display = 'block';
                 });
         }
-
+        
         function showTaskList() {
             document.getElementById('task-list-view').style.display = 'block';
             document.getElementById('task-view').style.display = 'none';
         }
-
+        
         function checkCode() {
             const code = document.getElementById('code-input').value;
             const resultDiv = document.getElementById('result');
-
+            
             resultDiv.innerHTML = '<div class="result">⏳ Проверка...</div>';
-
+            
             fetch('/api/check', {
                 method: 'POST',
                 headers: {
