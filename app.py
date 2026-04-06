@@ -351,6 +351,7 @@ def handle_leave_room(data):
 
 @socketio.on('play')
 def handle_play(data):
+    print(f"🔊 PLAY received: {data}")  # ← эта строка
     room_id = data['room_id']
     current_time = data['current_time']
     with app.app_context():
