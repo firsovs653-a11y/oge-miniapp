@@ -51,6 +51,7 @@
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
     const socket = io();
+    console.log('Room ID:', roomId);
     const roomId = {{ room.id }};
     const video = document.getElementById('video-player');
     let isLocalAction = false;
