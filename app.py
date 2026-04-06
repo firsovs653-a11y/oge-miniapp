@@ -143,7 +143,8 @@ def reject_request(request_id):
 @app.route('/friends')
 @login_required
 def friends():
-    return render_template('friends.html')
+    incoming_requests = FriendRequest.query.filter_by(to_user_id=current_user.id, status='pending').all()
+    return render_template('friends.html', FriendRequest=FriendRequest, incoming_requests=incoming_requests)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
