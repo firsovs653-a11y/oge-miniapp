@@ -68,6 +68,81 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('index'))
+@app.route('/profile/<username>')
+@login_required
+def profile(username):
+    user = User.query.filter_by(username=username).first_or_404()
+    is_friend = user in current_user.friends
+    pending_request = FriendRequest.query.filter_by(
+        from_user_id=current_user.id, 
+        to_user_id=user.id, 
+        status='pending'
+    ).first()
+    return render_template('profile.html', profile_user=user, is_friend=is_friend, pending_request=pending_request)
+
+@app.route('/search')
+@login_required
+def search():
+    query = request.args.get('q', '')
+    users = User.query.filter(User.username.contains(query), User.id != current_user.id).all()
+    return render_template('search.html', users=users, query=query)
+
+@app.route('/send_request/<int:user_id>')
+@login_required
+def send_request(user_id):
+    user = User.query.get_or_404(user_id)
+    if user == current_user:
+        flash('Нельзя добавить себя в друзья')
+        return redirect(url_for('search'))
+    
+    existing = FriendRequest.query.filter_by(
+        from_user_id=current_user.id, 
+        to_user_id=user_id, 
+        status='pending'
+    ).first()
+    
+    if existing:
+        flash('Заявка уже отправлена')
+    else:
+        request_obj = FriendRequest(from_user_id=current_user.id, to_user_id=user_id)
+        db.session.add(request_obj)
+        db.session.commit()
+        flash(f'Заявка отправлена пользователю {user.username}')
+    
+    return redirect(url_for('profile', username=user.username))
+
+@app.route('/accept_request/<int:request_id>')
+@login_required
+def accept_request(request_id):
+    req = FriendRequest.query.get_or_404(request_id)
+    if req.to_user_id != current_user.id:
+        flash('Доступ запрещён')
+        return redirect(url_for('index'))
+    
+    req.status = 'accepted'
+    current_user.friends.append(req.from_user)
+    req.from_user.friends.append(current_user)
+    db.session.commit()
+    flash(f'Вы добавили {req.from_user.username} в друзья')
+    return redirect(url_for('friends'))
+
+@app.route('/reject_request/<int:request_id>')
+@login_required
+def reject_request(request_id):
+    req = FriendRequest.query.get_or_404(request_id)
+    if req.to_user_id != current_user.id:
+        flash('Доступ запрещён')
+        return redirect(url_for('index'))
+    
+    req.status = 'rejected'
+    db.session.commit()
+    flash('Заявка отклонена')
+    return redirect(url_for('friends'))
+
+@app.route('/friends')
+@login_required
+def friends():
+    return render_template('friends.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
