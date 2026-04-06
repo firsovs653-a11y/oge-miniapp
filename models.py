@@ -10,6 +10,17 @@ friends = db.Table('friends',
     db.Column('friend_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
 )
 
+# Таблица для заявок в друзья
+class FriendRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    from_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    to_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending, accepted, rejected
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    from_user = db.relationship('User', foreign_keys=[from_user_id], backref='sent_requests')
+    to_user = db.relationship('User', foreign_keys=[to_user_id], backref='received_requests')
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
