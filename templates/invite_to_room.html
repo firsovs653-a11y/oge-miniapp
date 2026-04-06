@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Пригласить в комнату{% endblock %}
+
+{% block content %}
+<h1>👥 Пригласить друзей в "{{ room.name }}"</h1>
+
+<div class="form-card">
+    {% if friends %}
+        <form method="POST">
+            <label>Выбери друга:</label>
+            <select name="friend_id" class="form-control" style="width: 100%; padding: 10px; margin: 10px 0; border-radius: 12px;">
+                {% for friend in friends %}
+                <option value="{{ friend.id }}">{{ friend.username }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn">Отправить приглашение</button>
+        </form>
+    {% else %}
+        <p>У вас пока нет друзей. Добавьте друзей, чтобы приглашать их в комнаты.</p>
+        <a href="{{ url_for('search') }}" class="btn">🔍 Найти друзей</a>
+    {% endif %}
+</div>
+
+<div style="text-align: center; margin-top: 20px;">
+    <a href="{{ url_for('room', room_id=room.id) }}" class="btn btn-secondary">← Назад к комнате</a>
+</div>
+{% endblock %}
