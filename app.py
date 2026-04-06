@@ -3,10 +3,13 @@ from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User
+import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'секретный_ключ_поменяй'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///kinobase.db'
+
+
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///kinobase.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
