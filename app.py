@@ -341,8 +341,22 @@ def handle_leave_room(data):
     leave_room(str(room_id))
     emit('user_left', {'user': current_user.username}, room=str(room_id))
 
+@socketio.on('play')
+def handle_play(data):
+    print(f"🔊 PLAY received: {data}")
+    room_id = data['room_id']
+    current_time = data['current_time']
+    with app.app_context():
+        room = Room.query.get(room_id)
+        if room:
+            room.is_playing = True
+            room.current_time = current_time
+            db.session.commit()
+    emit('sync_play', {'current_time': current_time}, room=str(room_id), include_self=False)
+
 @socketio.on('pause')
 def handle_pause(data):
+    print(f"⏸ PAUSE received: {data}")
     room_id = data['room_id']
     current_time = data['current_time']
     with app.app_context():
@@ -355,6 +369,7 @@ def handle_pause(data):
 
 @socketio.on('seek')
 def handle_seek(data):
+    print(f"⏩ SEEK received: {data}")
     room_id = data['room_id']
     current_time = data['current_time']
     with app.app_context():
@@ -366,6 +381,7 @@ def handle_seek(data):
 
 @socketio.on('change_video')
 def handle_change_video(data):
+    print(f"🎬 CHANGE_VIDEO received: {data}")
     room_id = data['room_id']
     video_url = data['video_url']
     with app.app_context():
@@ -388,5 +404,3 @@ def handle_get_state(data):
                 'current_time': room.current_time,
                 'is_playing': room.is_playing
             })
-if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)
