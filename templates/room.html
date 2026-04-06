@@ -64,9 +64,9 @@
     
     // Функции управления
     function playVideo() {
-        isLocalAction = true;
         video.play();
         socket.emit('play', { room_id: roomId, current_time: video.currentTime });
+        console.log('Play clicked, roomId:', roomId);
     }
     
     function pauseVideo() {
