@@ -351,7 +351,7 @@ def handle_leave_room(data):
 
 @socketio.on('play')
 def handle_play(data):
-    print(f"🔊 PLAY received: {data}")  # ← эта строка
+    print(f"🔥 PLAY received: {data}")
     room_id = data['room_id']
     current_time = data['current_time']
     with app.app_context():
@@ -361,6 +361,7 @@ def handle_play(data):
             room.current_time = current_time
             db.session.commit()
     emit('sync_play', {'current_time': current_time}, room=str(room_id), include_self=False)
+    print(f"🔥 sync_play sent to room {room_id}")
 
 @socketio.on('pause')
 def handle_pause(data):
