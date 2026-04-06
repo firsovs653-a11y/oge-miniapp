@@ -4,22 +4,11 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
-# Таблица для связи друзей (многие ко многим)
+# Таблица для связи друзей (многие ко многим) — только ОДИН РАЗ!
 friends = db.Table('friends',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('friend_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
 )
-
-# Таблица для заявок в друзья
-class FriendRequest(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    from_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    to_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    status = db.Column(db.String(20), default='pending')  # pending, accepted, rejected
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    from_user = db.relationship('User', foreign_keys=[from_user_id], backref='sent_requests')
-    to_user = db.relationship('User', foreign_keys=[to_user_id], backref='received_requests')
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -29,7 +18,6 @@ class User(UserMixin, db.Model):
     avatar = db.Column(db.String(200), default='/static/default-avatar.png')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Друзья
     friends = db.relationship(
         'User',
         secondary=friends,
@@ -37,7 +25,19 @@ class User(UserMixin, db.Model):
         secondaryjoin=(id == friends.c.friend_id),
         lazy='dynamic'
     )
-# Модель комнаты для просмотра
+
+class FriendRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    from_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    to_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    from_user = db.relationship('User', foreign_keys=[from_user_id], backref='sent_requests')
+    to_user = db.relationship('User', foreign_keys=[to_user_id], backref='received_requests')
+
+# ==================== КОМНАТЫ ====================
+
 class Room(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -47,19 +47,16 @@ class Room(db.Model):
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Текущее видео
     video_url = db.Column(db.String(500), default='')
     current_time = db.Column(db.Float, default=0.0)
     is_playing = db.Column(db.Boolean, default=False)
     
-    # Связи
     creator = db.relationship('User', foreign_keys=[created_by])
     members = db.relationship('RoomMember', backref='room', lazy='dynamic')
     
     def is_member(self, user_id):
         return RoomMember.query.filter_by(room_id=self.id, user_id=user_id).first() is not None
 
-# Участники комнаты
 class RoomMember(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     room_id = db.Column(db.Integer, db.ForeignKey('room.id'), nullable=False)
@@ -68,13 +65,12 @@ class RoomMember(db.Model):
     
     user = db.relationship('User', backref='room_memberships')
 
-# Приглашения в комнату
 class RoomInvite(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     room_id = db.Column(db.Integer, db.ForeignKey('room.id'), nullable=False)
     from_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     to_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    status = db.Column(db.String(20), default='pending')  # pending, accepted, rejected
+    status = db.Column(db.String(20), default='pending')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     room = db.relationship('Room', backref='invites')
