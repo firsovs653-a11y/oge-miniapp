@@ -37,3 +37,46 @@ class User(UserMixin, db.Model):
         secondaryjoin=(id == friends.c.friend_id),
         lazy='dynamic'
     )
+# Модель комнаты для просмотра
+class Room(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(500))
+    code = db.Column(db.String(10), unique=True, nullable=False)
+    is_private = db.Column(db.Boolean, default=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Текущее видео
+    video_url = db.Column(db.String(500), default='')
+    current_time = db.Column(db.Float, default=0.0)
+    is_playing = db.Column(db.Boolean, default=False)
+    
+    # Связи
+    creator = db.relationship('User', foreign_keys=[created_by])
+    members = db.relationship('RoomMember', backref='room', lazy='dynamic')
+    
+    def is_member(self, user_id):
+        return RoomMember.query.filter_by(room_id=self.id, user_id=user_id).first() is not None
+
+# Участники комнаты
+class RoomMember(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.Integer, db.ForeignKey('room.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='room_memberships')
+
+# Приглашения в комнату
+class RoomInvite(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.Integer, db.ForeignKey('room.id'), nullable=False)
+    from_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    to_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending, accepted, rejected
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    room = db.relationship('Room', backref='invites')
+    from_user = db.relationship('User', foreign_keys=[from_user_id])
+    to_user = db.relationship('User', foreign_keys=[to_user_id])
