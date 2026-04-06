@@ -4,6 +4,11 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
+# Таблица для связи друзей (многие ко многим)
+friends = db.Table('friends',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('friend_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+)
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -12,17 +17,12 @@ class User(UserMixin, db.Model):
     password = db.Column(db.String(200), nullable=False)
     avatar = db.Column(db.String(200), default='/static/default-avatar.png')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # Друзья (многие ко многим)
+    
+    # Друзья
     friends = db.relationship(
-        'User', secondary='friends',
-        primaryjoin=(id == db.Table('friends', db.Model.metadata,
-                                    db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
-                                    db.Column('friend_id', db.Integer, db.ForeignKey('user.id'))
-                                    ).c.user_id),
-        secondaryjoin=(id == db.Table('friends', db.Model.metadata,
-                                      db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
-                                      db.Column('friend_id', db.Integer, db.ForeignKey('user.id'))
-                                      ).c.friend_id),
+        'User',
+        secondary=friends,
+        primaryjoin=(id == friends.c.user_id),
+        secondaryjoin=(id == friends.c.friend_id),
         lazy='dynamic'
     )
