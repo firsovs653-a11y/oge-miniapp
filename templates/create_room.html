@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Создать комнату{% endblock %}
+
+{% block content %}
+<h1>➕ Создать комнату</h1>
+
+<div class="form-card">
+    <form method="POST">
+        <label>Название комнаты</label>
+        <input type="text" name="name" required>
+        
+        <label>Описание (необязательно)</label>
+        <textarea name="description" rows="3"></textarea>
+        
+        <label>
+            <input type="checkbox" name="is_private"> Приватная комната (только по приглашениям)
+        </label>
+        
+        <button type="submit" class="btn">Создать</button>
+    </form>
+</div>
+{% endblock %}
