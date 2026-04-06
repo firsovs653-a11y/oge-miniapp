@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Мои друзья{% endblock %}
+
+{% block content %}
+<h1>👥 Мои друзья</h1>
+
+<div class="form-card">
+    <h3>Входящие заявки</h3>
+    {% set requests = FriendRequest.query.filter_by(to_user_id=current_user.id, status='pending').all() %}
+    {% if requests %}
+        {% for req in requests %}
+            <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                {{ req.from_user.username }}
+                <a href="{{ url_for('accept_request', request_id=req.id) }}" class="btn" style="display: inline-block; width: auto; margin-left: 10px;">✅ Принять</a>
+                <a href="{{ url_for('reject_request', request_id=req.id) }}" class="btn" style="display: inline-block; width: auto; background: #dc3545;">❌ Отклонить</a>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Нет новых заявок</p>
+    {% endif %}
+</div>
+
+<div class="form-card" style="margin-top: 20px;">
+    <h3>Список друзей</h3>
+    {% if current_user.friends.count() > 0 %}
+        {% for friend in current_user.friends %}
+            <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                <a href="{{ url_for('profile', username=friend.username) }}">{{ friend.username }}</a>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>У вас пока нет друзей</p>
+    {% endif %}
+</div>
+
+<div style="text-align: center; margin-top: 20px;">
+    <a href="{{ url_for('search') }}" class="btn" style="background: #28a745;">🔍 Найти друзей</a>
+</div>
+{% endblock %}
