@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Поиск{% endblock %}
+
+{% block content %}
+<h1>🔍 Поиск пользователей</h1>
+
+<div class="form-card">
+    <form method="GET">
+        <input type="text" name="q" placeholder="Введите имя пользователя..." value="{{ query }}">
+        <button type="submit" class="btn">Искать</button>
+    </form>
+</div>
+
+{% if users %}
+    <div class="form-card" style="margin-top: 20px;">
+        <h3>Результаты поиска:</h3>
+        {% for user in users %}
+            <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                <a href="{{ url_for('profile', username=user.username) }}" style="font-weight: 600;">{{ user.username }}</a>
+            </div>
+        {% endfor %}
+    </div>
+{% elif query %}
+    <p style="text-align: center; margin-top: 20px;">Пользователи не найдены</p>
+{% endif %}
+{% endblock %}
