@@ -1,3 +1,4 @@
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
 import random
 import string
@@ -8,6 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest
 
 app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///kinobase.db')
@@ -325,5 +327,79 @@ def leave_room(room_id):
         flash(f'Вы покинули комнату "{room.name}"')
     
     return redirect(url_for('rooms'))
+# ==================== WEBSOCKET ДЛЯ СИНХРОНИЗАЦИИ ВИДЕО ====================
+
+@socketio.on('join_room')
+def handle_join_room(data):
+    room_id = data['room_id']
+    join_room(str(room_id))
+    emit('user_joined', {'user': current_user.username}, room=str(room_id))
+
+@socketio.on('leave_room')
+def handle_leave_room(data):
+    room_id = data['room_id']
+    leave_room(str(room_id))
+    emit('user_left', {'user': current_user.username}, room=str(room_id))
+
+@socketio.on('play')
+def handle_play(data):
+    room_id = data['room_id']
+    current_time = data['current_time']
+    # Обновляем состояние в БД
+    with app.app_context():
+        room = Room.query.get(room_id)
+        if room:
+            room.is_playing = True
+            room.current_time = current_time
+            db.session.commit()
+    emit('sync_play', {'current_time': current_time}, room=str(room_id), include_self=False)
+
+@socketio.on('pause')
+def handle_pause(data):
+    room_id = data['room_id']
+    current_time = data['current_time']
+    with app.app_context():
+        room = Room.query.get(room_id)
+        if room:
+            room.is_playing = False
+            room.current_time = current_time
+            db.session.commit()
+    emit('sync_pause', {'current_time': current_time}, room=str(room_id), include_self=False)
+
+@socketio.on('seek')
+def handle_seek(data):
+    room_id = data['room_id']
+    current_time = data['current_time']
+    with app.app_context():
+        room = Room.query.get(room_id)
+        if room:
+            room.current_time = current_time
+            db.session.commit()
+    emit('sync_seek', {'current_time': current_time}, room=str(room_id), include_self=False)
+
+@socketio.on('change_video')
+def handle_change_video(data):
+    room_id = data['room_id']
+    video_url = data['video_url']
+    with app.app_context():
+        room = Room.query.get(room_id)
+        if room:
+            room.video_url = video_url
+            room.current_time = 0
+            room.is_playing = False
+            db.session.commit()
+    emit('sync_change_video', {'video_url': video_url}, room=str(room_id), include_self=False)
+
+@socketio.on('get_state')
+def handle_get_state(data):
+    room_id = data['room_id']
+    with app.app_context():
+        room = Room.query.get(room_id)
+        if room:
+            emit('sync_state', {
+                'video_url': room.video_url,
+                'current_time': room.current_time,
+                'is_playing': room.is_playing
+            })
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
