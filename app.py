@@ -1,4 +1,5 @@
-from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask_socketio import SocketIO, emit
+import flask_socketio
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
 import random
 import string
@@ -350,13 +351,13 @@ def handle_disconnect():
 @socketio.on('join_room')
 def handle_join_room(data):
     room_id = data['room_id']
-    join_room(room_id)
+    flask_socketio.join_room(room_id)
     print(f"🔥 JOIN_ROOM: user joined room {room_id}")
 
 @socketio.on('leave_room')
 def handle_leave_room(data):
     room_id = data['room_id']
-    leave_room(room_id)
+    flask_socketio.leave_room(room_id)
     print(f"🔥 LEAVE_ROOM: user left room {room_id}")
 
 @socketio.on('play')
@@ -370,8 +371,7 @@ def handle_play(data):
             room.is_playing = True
             room.current_time = current_time
             db.session.commit()
-    emit('sync_play', {'current_time': current_time}, room=room_id, include_self=False)
-    print(f"🔊 sync_play sent to room {room_id}")
+    flask_socketio.emit('sync_play', {'current_time': current_time}, room=room_id, include_self=False)
 
 @socketio.on('pause')
 def handle_pause(data):
@@ -384,7 +384,7 @@ def handle_pause(data):
             room.is_playing = False
             room.current_time = current_time
             db.session.commit()
-    emit('sync_pause', {'current_time': current_time}, room=room_id, include_self=False)
+    flask_socketio.emit('sync_pause', {'current_time': current_time}, room=room_id, include_self=False)
 
 @socketio.on('seek')
 def handle_seek(data):
@@ -396,7 +396,7 @@ def handle_seek(data):
         if room:
             room.current_time = current_time
             db.session.commit()
-    emit('sync_seek', {'current_time': current_time}, room=room_id, include_self=False)
+    flask_socketio.emit('sync_seek', {'current_time': current_time}, room=room_id, include_self=False)
 
 @socketio.on('change_video')
 def handle_change_video(data):
@@ -410,7 +410,7 @@ def handle_change_video(data):
             room.current_time = 0
             room.is_playing = False
             db.session.commit()
-    emit('sync_change_video', {'video_url': video_url}, room=room_id, include_self=False)
+    flask_socketio.emit('sync_change_video', {'video_url': video_url}, room=room_id, include_self=False)
 
 @socketio.on('get_state')
 def handle_get_state(data):
@@ -419,7 +419,7 @@ def handle_get_state(data):
     with app.app_context():
         room = Room.query.get(room_id)
         if room:
-            emit('sync_state', {
+            flask_socketio.emit('sync_state', {
                 'video_url': room.video_url,
                 'current_time': room.current_time,
                 'is_playing': room.is_playing
