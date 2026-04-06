@@ -237,7 +237,7 @@ def room(room_id):
 
 @app.route('/room/join', methods=['POST'])
 @login_required
-def join_room():
+def join_room_route():
     code = request.form['code']
     room = Room.query.filter_by(code=code).first()
     
@@ -326,7 +326,7 @@ def reject_invite(invite_id):
 
 @app.route('/room/leave/<int:room_id>')
 @login_required
-def leave_room(room_id):
+def leave_room_route(room_id):
     room = Room.query.get_or_404(room_id)
     
     member = RoomMember.query.filter_by(room_id=room.id, user_id=current_user.id).first()
@@ -352,7 +352,6 @@ def handle_leave_room(data):
 
 @socketio.on('play')
 def handle_play(data):
-    print(f"🔊 PLAY received: {data}")
     room_id = data['room_id']
     current_time = data['current_time']
     with app.app_context():
