@@ -6,14 +6,22 @@ from models import db, User, FriendRequest
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:////app/instance/kinobase.db')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///kinobase.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+instance_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance')
+if not os.path.exists(instance_path):
+    os.makedirs(instance_path)
+    print(f"✅ Создана папка: {instance_path}")
 
 db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+@app.context_processor
+def inject_user():
+    return dict(current_user=current_user)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -21,6 +29,9 @@ def load_user(user_id):
 
 with app.app_context():
     db.create_all()
+    print("✅ База данных создана")
+
+
 
 @app.route('/')
 def index():
