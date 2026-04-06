@@ -161,6 +161,169 @@ def reject_request(request_id):
 def friends():
     incoming_requests = FriendRequest.query.filter_by(to_user_id=current_user.id, status='pending').all()
     return render_template('friends.html', FriendRequest=FriendRequest, incoming_requests=incoming_requests)
+# ==================== КОМНАТЫ ДЛЯ ПРОСМОТРА ====================
 
+@app.route('/rooms')
+@login_required
+def rooms():
+    # Мои комнаты (где я участник или создатель)
+    my_rooms = Room.query.filter(
+        (Room.created_by == current_user.id) |
+        (Room.id.in_(db.session.query(RoomMember.room_id).filter(RoomMember.user_id == current_user.id)))
+    ).all()
+    
+    # Приглашения в комнаты
+    invites = RoomInvite.query.filter_by(to_user_id=current_user.id, status='pending').all()
+    
+    return render_template('rooms.html', rooms=my_rooms, invites=invites)
+
+@app.route('/room/create', methods=['GET', 'POST'])
+@login_required
+def create_room():
+    if request.method == 'POST':
+        name = request.form['name']
+        description = request.form.get('description', '')
+        is_private = 'is_private' in request.form
+        
+        code = generate_room_code()
+        while Room.query.filter_by(code=code).first():
+            code = generate_room_code()
+        
+        room = Room(
+            name=name,
+            description=description,
+            code=code,
+            is_private=is_private,
+            created_by=current_user.id
+        )
+        db.session.add(room)
+        db.session.commit()
+        
+        # Добавляем создателя как участника
+        member = RoomMember(room_id=room.id, user_id=current_user.id)
+        db.session.add(member)
+        db.session.commit()
+        
+        flash(f'Комната "{name}" создана! Код: {code}')
+        return redirect(url_for('room', room_id=room.id))
+    
+    return render_template('create_room.html')
+
+@app.route('/room/<int:room_id>')
+@login_required
+def room(room_id):
+    room = Room.query.get_or_404(room_id)
+    
+    # Проверяем, имеет ли пользователь доступ
+    if room.is_private and not room.is_member(current_user.id) and room.created_by != current_user.id:
+        flash('У вас нет доступа к этой комнате')
+        return redirect(url_for('rooms'))
+    
+    members = RoomMember.query.filter_by(room_id=room.id).all()
+    return render_template('room.html', room=room, members=members)
+
+@app.route('/room/join', methods=['POST'])
+@login_required
+def join_room():
+    code = request.form['code']
+    room = Room.query.filter_by(code=code).first()
+    
+    if not room:
+        flash('Комната с таким кодом не найдена')
+        return redirect(url_for('rooms'))
+    
+    if room.is_member(current_user.id):
+        flash('Вы уже в этой комнате')
+        return redirect(url_for('room', room_id=room.id))
+    
+    member = RoomMember(room_id=room.id, user_id=current_user.id)
+    db.session.add(member)
+    db.session.commit()
+    
+    flash(f'Вы присоединились к комнате "{room.name}"')
+    return redirect(url_for('room', room_id=room.id))
+
+@app.route('/room/invite/<int:room_id>', methods=['GET', 'POST'])
+@login_required
+def invite_to_room(room_id):
+    room = Room.query.get_or_404(room_id)
+    
+    if room.created_by != current_user.id:
+        flash('Только создатель комнаты может приглашать')
+        return redirect(url_for('room', room_id=room.id))
+    
+    if request.method == 'POST':
+        friend_id = request.form['friend_id']
+        friend = User.query.get_or_404(friend_id)
+        
+        # Проверяем, не отправлено ли уже приглашение
+        existing = RoomInvite.query.filter_by(
+            room_id=room.id,
+            to_user_id=friend_id,
+            status='pending'
+        ).first()
+        
+        if existing:
+            flash('Приглашение уже отправлено')
+        else:
+            invite = RoomInvite(
+                room_id=room.id,
+                from_user_id=current_user.id,
+                to_user_id=friend_id
+            )
+            db.session.add(invite)
+            db.session.commit()
+            flash(f'Приглашение отправлено {friend.username}')
+        
+        return redirect(url_for('room', room_id=room.id))
+    
+    # GET — показываем список друзей для приглашения
+    friends = current_user.friends.all()
+    return render_template('invite_to_room.html', room=room, friends=friends)
+
+@app.route('/room/accept_invite/<int:invite_id>')
+@login_required
+def accept_invite(invite_id):
+    invite = RoomInvite.query.get_or_404(invite_id)
+    
+    if invite.to_user_id != current_user.id:
+        flash('Доступ запрещён')
+        return redirect(url_for('rooms'))
+    
+    invite.status = 'accepted'
+    member = RoomMember(room_id=invite.room_id, user_id=current_user.id)
+    db.session.add(member)
+    db.session.commit()
+    
+    flash(f'Вы присоединились к комнате "{invite.room.name}"')
+    return redirect(url_for('room', room_id=invite.room_id))
+
+@app.route('/room/reject_invite/<int:invite_id>')
+@login_required
+def reject_invite(invite_id):
+    invite = RoomInvite.query.get_or_404(invite_id)
+    
+    if invite.to_user_id != current_user.id:
+        flash('Доступ запрещён')
+        return redirect(url_for('rooms'))
+    
+    invite.status = 'rejected'
+    db.session.commit()
+    
+    flash('Приглашение отклонено')
+    return redirect(url_for('rooms'))
+
+@app.route('/room/leave/<int:room_id>')
+@login_required
+def leave_room(room_id):
+    room = Room.query.get_or_404(room_id)
+    
+    member = RoomMember.query.filter_by(room_id=room.id, user_id=current_user.id).first()
+    if member:
+        db.session.delete(member)
+        db.session.commit()
+        flash(f'Вы покинули комнату "{room.name}"')
+    
+    return redirect(url_for('rooms'))
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
