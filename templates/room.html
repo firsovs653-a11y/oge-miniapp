@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}{{ room.name }}{% endblock %}
+
+{% block content %}
+<h1>🎬 {{ room.name }}</h1>
+
+<div class="form-card">
+    <p><strong>Код комнаты:</strong> {{ room.code }}</p>
+    <p><strong>Создатель:</strong> {{ room.creator.username }}</p>
+    <p><strong>Описание:</strong> {{ room.description or 'Нет описания' }}</p>
+    
+    <h3>👥 Участники ({{ members|length }})</h3>
+    <ul>
+        {% for member in members %}
+        <li>{{ member.user.username }}</li>
+        {% endfor %}
+    </ul>
+    
+    <hr>
+    <p style="text-align: center; color: #999;">🎥 Синхропросмотр видео появится в следующем шаге!</p>
+</div>
+
+<div style="text-align: center; margin-top: 20px;">
+    <a href="{{ url_for('rooms') }}" class="btn btn-secondary">← Назад к комнатам</a>
+</div>
+{% endblock %}
