@@ -102,6 +102,7 @@
             <div>
                 {% if current_user.is_authenticated %}
                     <span>Привет, {{ current_user.username }}!</span>
+                    <a href="{{ url_for('rooms') }}">🎬 Комнаты</a>
                     <a href="{{ url_for('friends') }}">👥 Друзья</a>
                     <a href="{{ url_for('search') }}">🔍 Поиск</a>
                     <a href="{{ url_for('logout') }}">Выйти</a>
