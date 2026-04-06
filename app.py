@@ -341,19 +341,6 @@ def handle_leave_room(data):
     leave_room(str(room_id))
     emit('user_left', {'user': current_user.username}, room=str(room_id))
 
-@socketio.on('play')
-def handle_play(data):
-    room_id = data['room_id']
-    current_time = data['current_time']
-    # Обновляем состояние в БД
-    with app.app_context():
-        room = Room.query.get(room_id)
-        if room:
-            room.is_playing = True
-            room.current_time = current_time
-            db.session.commit()
-    emit('sync_play', {'current_time': current_time}, room=str(room_id), include_self=False)
-
 @socketio.on('pause')
 def handle_pause(data):
     room_id = data['room_id']
