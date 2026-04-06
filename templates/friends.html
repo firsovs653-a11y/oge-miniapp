@@ -7,9 +7,8 @@
 
 <div class="form-card">
     <h3>Входящие заявки</h3>
-    {% set requests = FriendRequest.query.filter_by(to_user_id=current_user.id, status='pending').all() %}
-    {% if requests %}
-        {% for req in requests %}
+    {% if incoming_requests %}
+        {% for req in incoming_requests %}
             <div style="padding: 10px; border-bottom: 1px solid #eee;">
                 {{ req.from_user.username }}
                 <a href="{{ url_for('accept_request', request_id=req.id) }}" class="btn" style="display: inline-block; width: auto; margin-left: 10px;">✅ Принять</a>
