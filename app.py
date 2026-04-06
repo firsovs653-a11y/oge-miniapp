@@ -3,10 +3,9 @@ from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
 import random
 import string
 import os
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User, FriendRequest
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -14,6 +13,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///kinobase.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 instance_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance')
 if not os.path.exists(instance_path):
     os.makedirs(instance_path)
@@ -31,13 +31,15 @@ def inject_user():
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
 def generate_room_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
 with app.app_context():
     db.create_all()
     print("✅ База данных создана")
 
-
+# ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 
 @app.route('/')
 def index():
@@ -54,6 +56,10 @@ def register():
             flash('Логин занят')
             return redirect(url_for('register'))
         
+        if User.query.filter_by(email=email).first():
+            flash('Email уже используется')
+            return redirect(url_for('register'))
+        
         user = User(
             username=username,
             email=email,
@@ -65,7 +71,7 @@ def register():
         flash('Регистрация успешна! Войдите')
         return redirect(url_for('login'))
     
-    return render_template('register.html', current_user=current_user)
+    return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -76,17 +82,20 @@ def login():
         
         if user and check_password_hash(user.password, password):
             login_user(user)
+            flash(f'Добро пожаловать, {user.username}!')
             return redirect(url_for('index'))
         else:
             flash('Неверный логин или пароль')
     
-    return render_template('login.html', current_user=current_user)
+    return render_template('login.html')
 
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
+    flash('Вы вышли из аккаунта')
     return redirect(url_for('index'))
+
 @app.route('/profile/<username>')
 @login_required
 def profile(username):
@@ -98,6 +107,11 @@ def profile(username):
         status='pending'
     ).first()
     return render_template('profile.html', profile_user=user, is_friend=is_friend, pending_request=pending_request)
+
+@app.route('/profile')
+@login_required
+def my_profile():
+    return redirect(url_for('profile', username=current_user.username))
 
 @app.route('/search')
 @login_required
@@ -162,19 +176,18 @@ def reject_request(request_id):
 @login_required
 def friends():
     incoming_requests = FriendRequest.query.filter_by(to_user_id=current_user.id, status='pending').all()
-    return render_template('friends.html', FriendRequest=FriendRequest, incoming_requests=incoming_requests)
+    return render_template('friends.html', incoming_requests=incoming_requests)
+
 # ==================== КОМНАТЫ ДЛЯ ПРОСМОТРА ====================
 
 @app.route('/rooms')
 @login_required
 def rooms():
-    # Мои комнаты (где я участник или создатель)
     my_rooms = Room.query.filter(
         (Room.created_by == current_user.id) |
         (Room.id.in_(db.session.query(RoomMember.room_id).filter(RoomMember.user_id == current_user.id)))
     ).all()
     
-    # Приглашения в комнаты
     invites = RoomInvite.query.filter_by(to_user_id=current_user.id, status='pending').all()
     
     return render_template('rooms.html', rooms=my_rooms, invites=invites)
@@ -201,7 +214,6 @@ def create_room():
         db.session.add(room)
         db.session.commit()
         
-        # Добавляем создателя как участника
         member = RoomMember(room_id=room.id, user_id=current_user.id)
         db.session.add(member)
         db.session.commit()
@@ -216,7 +228,6 @@ def create_room():
 def room(room_id):
     room = Room.query.get_or_404(room_id)
     
-    # Проверяем, имеет ли пользователь доступ
     if room.is_private and not room.is_member(current_user.id) and room.created_by != current_user.id:
         flash('У вас нет доступа к этой комнате')
         return redirect(url_for('rooms'))
@@ -258,7 +269,6 @@ def invite_to_room(room_id):
         friend_id = request.form['friend_id']
         friend = User.query.get_or_404(friend_id)
         
-        # Проверяем, не отправлено ли уже приглашение
         existing = RoomInvite.query.filter_by(
             room_id=room.id,
             to_user_id=friend_id,
@@ -279,7 +289,6 @@ def invite_to_room(room_id):
         
         return redirect(url_for('room', room_id=room.id))
     
-    # GET — показываем список друзей для приглашения
     friends = current_user.friends.all()
     return render_template('invite_to_room.html', room=room, friends=friends)
 
@@ -327,23 +336,21 @@ def leave_room(room_id):
         flash(f'Вы покинули комнату "{room.name}"')
     
     return redirect(url_for('rooms'))
+
 # ==================== WEBSOCKET ДЛЯ СИНХРОНИЗАЦИИ ВИДЕО ====================
 
 @socketio.on('join_room')
 def handle_join_room(data):
     room_id = data['room_id']
     join_room(str(room_id))
-    emit('user_joined', {'user': current_user.username}, room=str(room_id))
 
 @socketio.on('leave_room')
 def handle_leave_room(data):
     room_id = data['room_id']
     leave_room(str(room_id))
-    emit('user_left', {'user': current_user.username}, room=str(room_id))
 
 @socketio.on('play')
 def handle_play(data):
-    print(f"🔊 PLAY received: {data}")
     room_id = data['room_id']
     current_time = data['current_time']
     with app.app_context():
@@ -356,7 +363,6 @@ def handle_play(data):
 
 @socketio.on('pause')
 def handle_pause(data):
-    print(f"⏸ PAUSE received: {data}")
     room_id = data['room_id']
     current_time = data['current_time']
     with app.app_context():
@@ -369,7 +375,6 @@ def handle_pause(data):
 
 @socketio.on('seek')
 def handle_seek(data):
-    print(f"⏩ SEEK received: {data}")
     room_id = data['room_id']
     current_time = data['current_time']
     with app.app_context():
@@ -381,7 +386,6 @@ def handle_seek(data):
 
 @socketio.on('change_video')
 def handle_change_video(data):
-    print(f"🎬 CHANGE_VIDEO received: {data}")
     room_id = data['room_id']
     video_url = data['video_url']
     with app.app_context():
@@ -404,3 +408,8 @@ def handle_get_state(data):
                 'current_time': room.current_time,
                 'is_playing': room.is_playing
             })
+
+# ==================== ЗАПУСК ====================
+
+if __name__ == '__main__':
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
