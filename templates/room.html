@@ -51,28 +51,37 @@
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
-    const socket = io();
+    const socket = io({
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
+    });
+    
     const roomId = {{ room.id }};
     const video = document.getElementById('video-player');
     let isLocalAction = false;
-    
-    // Подключение к комнате
-    socket.emit('join_room', { room_id: roomId });
-    
-    // Получение текущего состояния
-    socket.emit('get_state', { room_id: roomId });
+    let isSyncing = false;
     
     // Функции управления
     function playVideo() {
+        if (isSyncing) return;
+        isLocalAction = true;
         video.play();
-        socket.emit('play', { room_id: roomId, current_time: video.currentTime });
-        console.log('Play clicked, roomId:', roomId);
+        socket.emit('play', { 
+            room_id: roomId, 
+            current_time: video.currentTime 
+        });
     }
     
     function pauseVideo() {
+        if (isSyncing) return;
         isLocalAction = true;
         video.pause();
-        socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
+        socket.emit('pause', { 
+            room_id: roomId, 
+            current_time: video.currentTime 
+        });
     }
     
     function changeVideo() {
@@ -81,35 +90,61 @@
             isLocalAction = true;
             document.getElementById('video-source').src = url;
             video.load();
-            socket.emit('change_video', { room_id: roomId, video_url: url });
+            socket.emit('change_video', { 
+                room_id: roomId, 
+                video_url: url 
+            });
         }
     }
     
-    // Обработчики синхронизации
+    // WebSocket события
+    socket.on('connect', () => {
+        console.log('✅ WebSocket connected');
+        socket.emit('join_room', { room_id: roomId });
+        socket.emit('get_state', { room_id: roomId });
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('❌ WebSocket disconnected');
+    });
+    
     socket.on('sync_play', (data) => {
-        if (!isLocalAction) {
+        console.log('sync_play received', data);
+        if (!isLocalAction && !isSyncing) {
+            isSyncing = true;
             video.currentTime = data.current_time;
-            video.play();
+            video.play().then(() => {
+                isSyncing = false;
+            }).catch(() => {
+                isSyncing = false;
+            });
         }
         isLocalAction = false;
     });
     
     socket.on('sync_pause', (data) => {
-        if (!isLocalAction) {
+        console.log('sync_pause received', data);
+        if (!isLocalAction && !isSyncing) {
+            isSyncing = true;
             video.currentTime = data.current_time;
             video.pause();
+            isSyncing = false;
         }
         isLocalAction = false;
     });
     
     socket.on('sync_seek', (data) => {
-        if (!isLocalAction) {
+        console.log('sync_seek received', data);
+        if (!isLocalAction && !isSyncing) {
+            isSyncing = true;
             video.currentTime = data.current_time;
+            isSyncing = false;
         }
         isLocalAction = false;
     });
     
     socket.on('sync_change_video', (data) => {
+        console.log('sync_change_video received', data);
         if (!isLocalAction) {
             document.getElementById('video-source').src = data.video_url;
             video.load();
@@ -118,36 +153,54 @@
     });
     
     socket.on('sync_state', (data) => {
-        if (data.video_url) {
+        console.log('sync_state received', data);
+        if (data.video_url && !isLocalAction) {
             document.getElementById('video-source').src = data.video_url;
             video.load();
         }
-        video.currentTime = data.current_time;
-        if (data.is_playing) {
-            video.play();
-        } else {
-            video.pause();
+        if (!isLocalAction && !isSyncing) {
+            isSyncing = true;
+            video.currentTime = data.current_time;
+            if (data.is_playing) {
+                video.play().then(() => {
+                    isSyncing = false;
+                }).catch(() => {
+                    isSyncing = false;
+                });
+            } else {
+                video.pause();
+                isSyncing = false;
+            }
         }
     });
     
-    socket.on('user_joined', (data) => {
-        const membersList = document.getElementById('members-list');
-        const li = document.createElement('li');
-        li.textContent = data.user;
-        membersList.appendChild(li);
+    // Локальные события видео
+    video.addEventListener('play', () => {
+        if (!isLocalAction && !isSyncing) {
+            socket.emit('play', { room_id: roomId, current_time: video.currentTime });
+        }
+        isLocalAction = false;
     });
     
-    // Перемотка
+    video.addEventListener('pause', () => {
+        if (!isLocalAction && !isSyncing) {
+            socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
+        }
+        isLocalAction = false;
+    });
+    
     video.addEventListener('seeked', () => {
-        if (!isLocalAction) {
+        if (!isLocalAction && !isSyncing) {
             socket.emit('seek', { room_id: roomId, current_time: video.currentTime });
         }
         isLocalAction = false;
     });
     
-    // При закрытии страницы
-    window.addEventListener('beforeunload', () => {
-        socket.emit('leave_room', { room_id: roomId });
-    });
+    // Периодическая синхронизация (каждые 5 секунд)
+    setInterval(() => {
+        if (!isSyncing) {
+            socket.emit('get_state', { room_id: roomId });
+        }
+    }, 5000);
 </script>
 {% endblock %}
