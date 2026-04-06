@@ -29,7 +29,8 @@ def inject_user():
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
-
+def generate_room_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 with app.app_context():
     db.create_all()
     print("✅ База данных создана")
