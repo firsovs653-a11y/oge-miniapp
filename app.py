@@ -86,6 +86,9 @@ def check_code():
             'error': str(e)
         })
 
-
+@app.context_processor
+def inject_user():
+    from flask_login import current_user
+    return dict(current_user=current_user)
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
