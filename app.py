@@ -339,6 +339,14 @@ def leave_room_route(room_id):
 
 # ==================== WEBSOCKET ДЛЯ СИНХРОНИЗАЦИИ ВИДЕО ====================
 
+@socketio.on('connect')
+def handle_connect():
+    print('✅ Client connected')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('❌ Client disconnected')
+
 @socketio.on('join_room')
 def handle_join_room(data):
     room_id = data['room_id']
@@ -349,9 +357,11 @@ def handle_join_room(data):
 def handle_leave_room(data):
     room_id = data['room_id']
     leave_room(room_id)
+    print(f"🔥 LEAVE_ROOM: user left room {room_id}")
 
 @socketio.on('play')
 def handle_play(data):
+    print(f"🔊 PLAY received: {data}")
     room_id = data['room_id']
     current_time = data['current_time']
     with app.app_context():
@@ -361,9 +371,11 @@ def handle_play(data):
             room.current_time = current_time
             db.session.commit()
     emit('sync_play', {'current_time': current_time}, room=room_id, include_self=False)
+    print(f"🔊 sync_play sent to room {room_id}")
 
 @socketio.on('pause')
 def handle_pause(data):
+    print(f"⏸ PAUSE received: {data}")
     room_id = data['room_id']
     current_time = data['current_time']
     with app.app_context():
@@ -376,6 +388,7 @@ def handle_pause(data):
 
 @socketio.on('seek')
 def handle_seek(data):
+    print(f"⏩ SEEK received: {data}")
     room_id = data['room_id']
     current_time = data['current_time']
     with app.app_context():
@@ -387,6 +400,7 @@ def handle_seek(data):
 
 @socketio.on('change_video')
 def handle_change_video(data):
+    print(f"🎬 CHANGE_VIDEO received: {data}")
     room_id = data['room_id']
     video_url = data['video_url']
     with app.app_context():
@@ -401,6 +415,7 @@ def handle_change_video(data):
 @socketio.on('get_state')
 def handle_get_state(data):
     room_id = data['room_id']
+    print(f"📊 GET_STATE for room {room_id}")
     with app.app_context():
         room = Room.query.get(room_id)
         if room:
