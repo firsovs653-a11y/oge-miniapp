@@ -11,17 +11,141 @@
     <p><strong>Описание:</strong> {{ room.description or 'Нет описания' }}</p>
     
     <h3>👥 Участники ({{ members|length }})</h3>
-    <ul>
+    <ul id="members-list">
         {% for member in members %}
         <li>{{ member.user.username }}</li>
         {% endfor %}
     </ul>
     
     <hr>
-    <p style="text-align: center; color: #999;">🎥 Синхропросмотр видео появится в следующем шаге!</p>
+    
+    <!-- Видеоплеер -->
+    <div style="margin-top: 20px;">
+        <h3>🎥 Синхропросмотр</h3>
+        
+        <div style="margin-bottom: 10px;">
+            <input type="text" id="video-url" placeholder="Ссылка на YouTube или MP4" style="width: 70%;">
+            <button onclick="changeVideo()" class="btn" style="width: 25%;">Загрузить</button>
+        </div>
+        
+        <video id="video-player" width="100%" controls style="border-radius: 16px; background: black;">
+            <source id="video-source" src="{{ room.video_url or '' }}" type="video/mp4">
+            Ваш браузер не поддерживает видео
+        </video>
+        
+        <div style="margin-top: 10px; display: flex; gap: 10px;">
+            <button onclick="playVideo()" class="btn" style="flex: 1;">▶ Play</button>
+            <button onclick="pauseVideo()" class="btn" style="flex: 1;">⏸ Pause</button>
+        </div>
+        
+        <p style="font-size: 12px; color: #999; margin-top: 10px;">
+            💡 Для YouTube используйте ссылку формата: https://www.youtube.com/embed/VIDEO_ID
+        </p>
+    </div>
 </div>
 
 <div style="text-align: center; margin-top: 20px;">
-    <a href="{{ url_for('rooms') }}" class="btn btn-secondary">← Назад к комнатам</a>
+    <a href="{{ url_for('rooms') }}" class="btn" style="background: #6c757d; display: inline-block; width: auto;">← Назад к комнатам</a>
 </div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+    const socket = io();
+    const roomId = {{ room.id }};
+    const video = document.getElementById('video-player');
+    let isLocalAction = false;
+    
+    // Подключение к комнате
+    socket.emit('join_room', { room_id: roomId });
+    
+    // Получение текущего состояния
+    socket.emit('get_state', { room_id: roomId });
+    
+    // Обработчики синхронизации
+    socket.on('sync_play', (data) => {
+        if (!isLocalAction) {
+            video.currentTime = data.current_time;
+            video.play();
+        }
+        isLocalAction = false;
+    });
+    
+    socket.on('sync_pause', (data) => {
+        if (!isLocalAction) {
+            video.currentTime = data.current_time;
+            video.pause();
+        }
+        isLocalAction = false;
+    });
+    
+    socket.on('sync_seek', (data) => {
+        if (!isLocalAction) {
+            video.currentTime = data.current_time;
+        }
+        isLocalAction = false;
+    });
+    
+    socket.on('sync_change_video', (data) => {
+        if (!isLocalAction) {
+            document.getElementById('video-source').src = data.video_url;
+            video.load();
+        }
+        isLocalAction = false;
+    });
+    
+    socket.on('sync_state', (data) => {
+        if (data.video_url) {
+            document.getElementById('video-source').src = data.video_url;
+            video.load();
+        }
+        video.currentTime = data.current_time;
+        if (data.is_playing) {
+            video.play();
+        } else {
+            video.pause();
+        }
+    });
+    
+    socket.on('user_joined', (data) => {
+        const membersList = document.getElementById('members-list');
+        const li = document.createElement('li');
+        li.textContent = data.user;
+        membersList.appendChild(li);
+    });
+    
+    // Функции управления
+    function playVideo() {
+        isLocalAction = true;
+        video.play();
+        socket.emit('play', { room_id: roomId, current_time: video.currentTime });
+    }
+    
+    function pauseVideo() {
+        isLocalAction = true;
+        video.pause();
+        socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
+    }
+    
+    video.addEventListener('seeked', () => {
+        if (!isLocalAction) {
+            socket.emit('seek', { room_id: roomId, current_time: video.currentTime });
+        }
+        isLocalAction = false;
+    });
+    
+    function changeVideo() {
+        const url = document.getElementById('video-url').value;
+        if (url) {
+            isLocalAction = true;
+            document.getElementById('video-source').src = url;
+            video.load();
+            socket.emit('change_video', { room_id: roomId, video_url: url });
+        }
+    }
+    
+    // При закрытии страницы
+    window.addEventListener('beforeunload', () => {
+        socket.emit('leave_room', { room_id: roomId });
+    });
+</script>
 {% endblock %}
