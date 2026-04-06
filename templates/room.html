@@ -24,7 +24,7 @@
         <h3>🎥 Синхропросмотр</h3>
         
         <div style="margin-bottom: 10px;">
-            <input type="text" id="video-url" placeholder="Ссылка на YouTube или MP4" style="width: 70%;">
+            <input type="text" id="video-url" placeholder="Ссылка на YouTube (embed) или MP4" style="width: 70%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
             <button onclick="changeVideo()" class="btn" style="width: 25%;">Загрузить</button>
         </div>
         
@@ -39,7 +39,8 @@
         </div>
         
         <p style="font-size: 12px; color: #999; margin-top: 10px;">
-            💡 Для YouTube используйте ссылку формата: https://www.youtube.com/embed/VIDEO_ID
+            💡 Для YouTube используйте ссылку формата: https://www.youtube.com/embed/VIDEO_ID<br>
+            📹 MP4: https://www.w3schools.com/html/mov_bbb.mp4
         </p>
     </div>
 </div>
@@ -51,7 +52,6 @@
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
     const socket = io();
-    console.log('Room ID:', roomId);
     const roomId = {{ room.id }};
     const video = document.getElementById('video-player');
     let isLocalAction = false;
@@ -61,6 +61,29 @@
     
     // Получение текущего состояния
     socket.emit('get_state', { room_id: roomId });
+    
+    // Функции управления
+    function playVideo() {
+        isLocalAction = true;
+        video.play();
+        socket.emit('play', { room_id: roomId, current_time: video.currentTime });
+    }
+    
+    function pauseVideo() {
+        isLocalAction = true;
+        video.pause();
+        socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
+    }
+    
+    function changeVideo() {
+        const url = document.getElementById('video-url').value;
+        if (url) {
+            isLocalAction = true;
+            document.getElementById('video-source').src = url;
+            video.load();
+            socket.emit('change_video', { room_id: roomId, video_url: url });
+        }
+    }
     
     // Обработчики синхронизации
     socket.on('sync_play', (data) => {
@@ -114,35 +137,13 @@
         membersList.appendChild(li);
     });
     
-    // Функции управления
-    function playVideo() {
-        isLocalAction = true;
-        video.play();
-        socket.emit('play', { room_id: roomId, current_time: video.currentTime });
-    }
-    
-    function pauseVideo() {
-        isLocalAction = true;
-        video.pause();
-        socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
-    }
-    
+    // Перемотка
     video.addEventListener('seeked', () => {
         if (!isLocalAction) {
             socket.emit('seek', { room_id: roomId, current_time: video.currentTime });
         }
         isLocalAction = false;
     });
-    
-    function changeVideo() {
-        const url = document.getElementById('video-url').value;
-        if (url) {
-            isLocalAction = true;
-            document.getElementById('video-source').src = url;
-            video.load();
-            socket.emit('change_video', { room_id: roomId, video_url: url });
-        }
-    }
     
     // При закрытии страницы
     window.addEventListener('beforeunload', () => {
