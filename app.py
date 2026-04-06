@@ -8,7 +8,7 @@ app = Flask(__name__)
 # Загружаем задания
 def load_tasks():
     try:
-        with open('tasks.tasks.json', 'r', encoding='utf-8') as f:
+        with open('tasks.json', 'r', encoding='utf-8') as f:
             return json.load(f)
     except:
         return {}
@@ -20,7 +20,7 @@ TASKS = load_tasks()
 @app.route('/')
 def index():
     """Главная страница Mini App"""
-    return render_template('index.html', tasks=TASKS)
+    return render_template('base.html', tasks=TASKS)
 
 
 @app.route('/api/task/<task_id>')
