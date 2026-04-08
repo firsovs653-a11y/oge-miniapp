@@ -35,7 +35,7 @@
             <div style="margin-top: 10px;">
                 <a href="{{ url_for('room', room_id=room.id) }}" class="btn" style="display: inline-block; width: auto;">🎬 Войти</a>
                 <a href="{{ url_for('invite_to_room', room_id=room.id) }}" class="btn" style="display: inline-block; width: auto; background: #007aff;">👥 Пригласить друзей</a>
-                <a href="{{ url_for('leave_room', room_id=room.id) }}" class="btn" style="display: inline-block; width: auto; background: #dc3545;">🚪 Покинуть</a>
+                <a href="{{ url_for('leave_room_route', room_id=room.id) }}" class="btn" style="display: inline-block; width: auto; background: #dc3545;">🚪 Покинуть</a>
             </div>
         </div>
         {% endfor %}
