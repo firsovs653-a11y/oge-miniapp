@@ -1,50 +1,43 @@
-from flask_socketio import SocketIO, emit
-import flask_socketio
+from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_socketio import SocketIO, join_room, leave_room, emit
+from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
 import random
 import string
 import os
-from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
-
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///kinobase.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-instance_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance')
-if not os.path.exists(instance_path):
-    os.makedirs(instance_path)
-    print(f"✅ Создана папка: {instance_path}")
 
 db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-@app.context_processor
-def inject_user():
-    return dict(current_user=current_user)
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+def generate_room_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-def generate_room_code():
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+@app.context_processor
+def inject_user():
+    return dict(current_user=current_user)
 
 with app.app_context():
     db.create_all()
-    print("✅ База данных создана")
 
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 
 @app.route('/')
 def index():
-    return render_template('index.html', current_user=current_user)
+    return render_template('index.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -52,26 +45,14 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
-        
         if User.query.filter_by(username=username).first():
             flash('Логин занят')
             return redirect(url_for('register'))
-        
-        if User.query.filter_by(email=email).first():
-            flash('Email уже используется')
-            return redirect(url_for('register'))
-        
-        user = User(
-            username=username,
-            email=email,
-            password=generate_password_hash(password)
-        )
+        user = User(username=username, email=email, password=generate_password_hash(password))
         db.session.add(user)
         db.session.commit()
-        
         flash('Регистрация успешна! Войдите')
         return redirect(url_for('login'))
-    
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -80,106 +61,75 @@ def login():
         username = request.form['username']
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
-        
         if user and check_password_hash(user.password, password):
             login_user(user)
-            flash(f'Добро пожаловать, {user.username}!')
             return redirect(url_for('index'))
-        else:
-            flash('Неверный логин или пароль')
-    
+        flash('Неверный логин или пароль')
     return render_template('login.html')
 
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
-    flash('Вы вышли из аккаунта')
     return redirect(url_for('index'))
+
+@app.route('/friends')
+@login_required
+def friends():
+    incoming = FriendRequest.query.filter_by(to_user_id=current_user.id, status='pending').all()
+    return render_template('friends.html', incoming_requests=incoming)
+
+@app.route('/search')
+@login_required
+def search():
+    q = request.args.get('q', '')
+    users = User.query.filter(User.username.contains(q), User.id != current_user.id).all()
+    return render_template('search.html', users=users, query=q)
 
 @app.route('/profile/<username>')
 @login_required
 def profile(username):
     user = User.query.filter_by(username=username).first_or_404()
     is_friend = user in current_user.friends
-    pending_request = FriendRequest.query.filter_by(
-        from_user_id=current_user.id, 
-        to_user_id=user.id, 
-        status='pending'
-    ).first()
-    return render_template('profile.html', profile_user=user, is_friend=is_friend, pending_request=pending_request)
-
-@app.route('/profile')
-@login_required
-def my_profile():
-    return redirect(url_for('profile', username=current_user.username))
-
-@app.route('/search')
-@login_required
-def search():
-    query = request.args.get('q', '')
-    users = User.query.filter(User.username.contains(query), User.id != current_user.id).all()
-    return render_template('search.html', users=users, query=query)
+    pending = FriendRequest.query.filter_by(from_user_id=current_user.id, to_user_id=user.id, status='pending').first()
+    return render_template('profile.html', profile_user=user, is_friend=is_friend, pending_request=pending)
 
 @app.route('/send_request/<int:user_id>')
 @login_required
 def send_request(user_id):
     user = User.query.get_or_404(user_id)
     if user == current_user:
-        flash('Нельзя добавить себя в друзья')
+        flash('Нельзя добавить себя')
         return redirect(url_for('search'))
-    
-    existing = FriendRequest.query.filter_by(
-        from_user_id=current_user.id, 
-        to_user_id=user_id, 
-        status='pending'
-    ).first()
-    
-    if existing:
-        flash('Заявка уже отправлена')
-    else:
-        request_obj = FriendRequest(from_user_id=current_user.id, to_user_id=user_id)
-        db.session.add(request_obj)
+    if not FriendRequest.query.filter_by(from_user_id=current_user.id, to_user_id=user_id, status='pending').first():
+        db.session.add(FriendRequest(from_user_id=current_user.id, to_user_id=user_id))
         db.session.commit()
-        flash(f'Заявка отправлена пользователю {user.username}')
-    
+        flash(f'Заявка отправлена {user.username}')
     return redirect(url_for('profile', username=user.username))
 
 @app.route('/accept_request/<int:request_id>')
 @login_required
 def accept_request(request_id):
     req = FriendRequest.query.get_or_404(request_id)
-    if req.to_user_id != current_user.id:
-        flash('Доступ запрещён')
-        return redirect(url_for('index'))
-    
-    req.status = 'accepted'
-    current_user.friends.append(req.from_user)
-    req.from_user.friends.append(current_user)
-    db.session.commit()
-    flash(f'Вы добавили {req.from_user.username} в друзья')
+    if req.to_user_id == current_user.id:
+        req.status = 'accepted'
+        current_user.friends.append(req.from_user)
+        req.from_user.friends.append(current_user)
+        db.session.commit()
+        flash(f'Вы добавили {req.from_user.username}')
     return redirect(url_for('friends'))
 
 @app.route('/reject_request/<int:request_id>')
 @login_required
 def reject_request(request_id):
     req = FriendRequest.query.get_or_404(request_id)
-    if req.to_user_id != current_user.id:
-        flash('Доступ запрещён')
-        return redirect(url_for('index'))
-    
-    req.status = 'rejected'
-    db.session.commit()
-    flash('Заявка отклонена')
+    if req.to_user_id == current_user.id:
+        req.status = 'rejected'
+        db.session.commit()
+        flash('Заявка отклонена')
     return redirect(url_for('friends'))
 
-@app.route('/friends')
-@login_required
-def friends():
-    incoming_requests = FriendRequest.query.filter_by(to_user_id=current_user.id, status='pending').all()
-    return render_template('friends.html', incoming_requests=incoming_requests)
-
-# ==================== КОМНАТЫ ДЛЯ ПРОСМОТРА ====================
+# ==================== КОМНАТЫ ====================
 
 @app.route('/rooms')
 @login_required
@@ -188,9 +138,7 @@ def rooms():
         (Room.created_by == current_user.id) |
         (Room.id.in_(db.session.query(RoomMember.room_id).filter(RoomMember.user_id == current_user.id)))
     ).all()
-    
     invites = RoomInvite.query.filter_by(to_user_id=current_user.id, status='pending').all()
-    
     return render_template('rooms.html', rooms=my_rooms, invites=invites)
 
 @app.route('/room/create', methods=['GET', 'POST'])
@@ -198,232 +146,131 @@ def rooms():
 def create_room():
     if request.method == 'POST':
         name = request.form['name']
-        description = request.form.get('description', '')
+        desc = request.form.get('description', '')
         is_private = 'is_private' in request.form
-        
         code = generate_room_code()
         while Room.query.filter_by(code=code).first():
             code = generate_room_code()
-        
-        room = Room(
-            name=name,
-            description=description,
-            code=code,
-            is_private=is_private,
-            created_by=current_user.id
-        )
+        room = Room(name=name, description=desc, code=code, is_private=is_private, created_by=current_user.id)
         db.session.add(room)
         db.session.commit()
-        
-        member = RoomMember(room_id=room.id, user_id=current_user.id)
-        db.session.add(member)
+        db.session.add(RoomMember(room_id=room.id, user_id=current_user.id))
         db.session.commit()
-        
         flash(f'Комната "{name}" создана! Код: {code}')
         return redirect(url_for('room', room_id=room.id))
-    
     return render_template('create_room.html')
 
 @app.route('/room/<int:room_id>')
 @login_required
 def room(room_id):
     room = Room.query.get_or_404(room_id)
-    
     if room.is_private and not room.is_member(current_user.id) and room.created_by != current_user.id:
-        flash('У вас нет доступа к этой комнате')
+        flash('Нет доступа')
         return redirect(url_for('rooms'))
-    
     members = RoomMember.query.filter_by(room_id=room.id).all()
     return render_template('room.html', room=room, members=members)
 
 @app.route('/room/join', methods=['POST'])
 @login_required
-def join_room_route():
+def join_room_code():
     code = request.form['code']
     room = Room.query.filter_by(code=code).first()
-    
     if not room:
-        flash('Комната с таким кодом не найдена')
+        flash('Комната не найдена')
         return redirect(url_for('rooms'))
-    
     if room.is_member(current_user.id):
-        flash('Вы уже в этой комнате')
+        flash('Вы уже в комнате')
         return redirect(url_for('room', room_id=room.id))
-    
-    member = RoomMember(room_id=room.id, user_id=current_user.id)
-    db.session.add(member)
+    db.session.add(RoomMember(room_id=room.id, user_id=current_user.id))
     db.session.commit()
-    
-    flash(f'Вы присоединились к комнате "{room.name}"')
+    flash(f'Вы присоединились к "{room.name}"')
     return redirect(url_for('room', room_id=room.id))
 
 @app.route('/room/invite/<int:room_id>', methods=['GET', 'POST'])
 @login_required
 def invite_to_room(room_id):
     room = Room.query.get_or_404(room_id)
-    
     if room.created_by != current_user.id:
-        flash('Только создатель комнаты может приглашать')
+        flash('Только создатель может приглашать')
         return redirect(url_for('room', room_id=room.id))
-    
     if request.method == 'POST':
         friend_id = request.form['friend_id']
         friend = User.query.get_or_404(friend_id)
-        
-        existing = RoomInvite.query.filter_by(
-            room_id=room.id,
-            to_user_id=friend_id,
-            status='pending'
-        ).first()
-        
-        if existing:
-            flash('Приглашение уже отправлено')
-        else:
-            invite = RoomInvite(
-                room_id=room.id,
-                from_user_id=current_user.id,
-                to_user_id=friend_id
-            )
-            db.session.add(invite)
+        if not RoomInvite.query.filter_by(room_id=room.id, to_user_id=friend_id, status='pending').first():
+            db.session.add(RoomInvite(room_id=room.id, from_user_id=current_user.id, to_user_id=friend_id))
             db.session.commit()
             flash(f'Приглашение отправлено {friend.username}')
-        
         return redirect(url_for('room', room_id=room.id))
-    
     friends = current_user.friends.all()
     return render_template('invite_to_room.html', room=room, friends=friends)
 
 @app.route('/room/accept_invite/<int:invite_id>')
 @login_required
-def accept_invite(invite_id):
+def accept_room_invite(invite_id):
     invite = RoomInvite.query.get_or_404(invite_id)
-    
-    if invite.to_user_id != current_user.id:
-        flash('Доступ запрещён')
-        return redirect(url_for('rooms'))
-    
-    invite.status = 'accepted'
-    member = RoomMember(room_id=invite.room_id, user_id=current_user.id)
-    db.session.add(member)
-    db.session.commit()
-    
-    flash(f'Вы присоединились к комнате "{invite.room.name}"')
-    return redirect(url_for('room', room_id=invite.room_id))
+    if invite.to_user_id == current_user.id:
+        invite.status = 'accepted'
+        db.session.add(RoomMember(room_id=invite.room_id, user_id=current_user.id))
+        db.session.commit()
+        flash(f'Вы присоединились к "{invite.room.name}"')
+        return redirect(url_for('room', room_id=invite.room_id))
+    return redirect(url_for('rooms'))
 
 @app.route('/room/reject_invite/<int:invite_id>')
 @login_required
-def reject_invite(invite_id):
+def reject_room_invite(invite_id):
     invite = RoomInvite.query.get_or_404(invite_id)
-    
-    if invite.to_user_id != current_user.id:
-        flash('Доступ запрещён')
-        return redirect(url_for('rooms'))
-    
-    invite.status = 'rejected'
-    db.session.commit()
-    
-    flash('Приглашение отклонено')
+    if invite.to_user_id == current_user.id:
+        invite.status = 'rejected'
+        db.session.commit()
+        flash('Приглашение отклонено')
     return redirect(url_for('rooms'))
 
 @app.route('/room/leave/<int:room_id>')
 @login_required
 def leave_room_route(room_id):
-    room = Room.query.get_or_404(room_id)
-    
-    member = RoomMember.query.filter_by(room_id=room.id, user_id=current_user.id).first()
+    member = RoomMember.query.filter_by(room_id=room_id, user_id=current_user.id).first()
     if member:
         db.session.delete(member)
         db.session.commit()
-        flash(f'Вы покинули комнату "{room.name}"')
-    
+        flash('Вы покинули комнату')
     return redirect(url_for('rooms'))
 
-# ==================== WEBSOCKET ДЛЯ СИНХРОНИЗАЦИИ ВИДЕО ====================
+# ==================== WEBSOCKET ====================
 
-@socketio.on('connect')
-def handle_connect():
-    print('✅ Client connected')
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    print('❌ Client disconnected')
-
-@socketio.on('join_room')
-def handle_join_room(data):
-    room_id = data['room_id']
-    flask_socketio.join_room(room_id)
-    print(f"🔥 JOIN_ROOM: user joined room {room_id}")
-
-@socketio.on('leave_room')
-def handle_leave_room(data):
-    room_id = data['room_id']
-    flask_socketio.leave_room(room_id)
-    print(f"🔥 LEAVE_ROOM: user left room {room_id}")
+@socketio.on('join')
+def on_join(data):
+    room = str(data['room_id'])
+    join_room(room)
+    print(f'Client joined room {room}')
 
 @socketio.on('play')
-def handle_play(data):
-    print(f"🔊 PLAY received: {data}")
-    room_id = data['room_id']
-    current_time = data['current_time']
-    with app.app_context():
-        room = Room.query.get(room_id)
-        if room:
-            room.is_playing = True
-            room.current_time = current_time
-            db.session.commit()
-    flask_socketio.emit('sync_play', {'current_time': current_time}, room=room_id, include_self=False)
+def on_play(data):
+    room = str(data['room_id'])
+    time = data['current_time']
+    print(f'Play in room {room} at {time}')
+    socketio.emit('play_sync', {'current_time': time}, room=room, include_self=False)
 
 @socketio.on('pause')
-def handle_pause(data):
-    print(f"⏸ PAUSE received: {data}")
-    room_id = data['room_id']
-    current_time = data['current_time']
-    with app.app_context():
-        room = Room.query.get(room_id)
-        if room:
-            room.is_playing = False
-            room.current_time = current_time
-            db.session.commit()
-    flask_socketio.emit('sync_pause', {'current_time': current_time}, room=room_id, include_self=False)
+def on_pause(data):
+    room = str(data['room_id'])
+    time = data['current_time']
+    print(f'Pause in room {room} at {time}')
+    socketio.emit('pause_sync', {'current_time': time}, room=room, include_self=False)
 
 @socketio.on('seek')
-def handle_seek(data):
-    print(f"⏩ SEEK received: {data}")
-    room_id = data['room_id']
-    current_time = data['current_time']
-    with app.app_context():
-        room = Room.query.get(room_id)
-        if room:
-            room.current_time = current_time
-            db.session.commit()
-    flask_socketio.emit('sync_seek', {'current_time': current_time}, room=room_id, include_self=False)
+def on_seek(data):
+    room = str(data['room_id'])
+    time = data['current_time']
+    print(f'Seek in room {room} to {time}')
+    socketio.emit('seek_sync', {'current_time': time}, room=room, include_self=False)
 
 @socketio.on('change_video')
-def handle_change_video(data):
-    print(f"🎬 CHANGE_VIDEO received: {data}")
-    room_id = data['room_id']
-    video_url = data['video_url']
-    with app.app_context():
-        room = Room.query.get(room_id)
-        if room:
-            room.video_url = video_url
-            room.current_time = 0
-            room.is_playing = False
-            db.session.commit()
-    flask_socketio.emit('sync_change_video', {'video_url': video_url}, room=room_id, include_self=False)
-
-@socketio.on('get_state')
-def handle_get_state(data):
-    room_id = data['room_id']
-    print(f"📊 GET_STATE for room {room_id}")
-    with app.app_context():
-        room = Room.query.get(room_id)
-        if room:
-            flask_socketio.emit('sync_state', {
-                'video_url': room.video_url,
-                'current_time': room.current_time,
-                'is_playing': room.is_playing
-            })
+def on_change_video(data):
+    room = str(data['room_id'])
+    url = data['video_url']
+    print(f'Change video in room {room} to {url}')
+    socketio.emit('video_change_sync', {'video_url': url}, room=room, include_self=False)
 
 # ==================== ЗАПУСК ====================
 
