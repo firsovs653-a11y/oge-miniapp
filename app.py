@@ -6,6 +6,75 @@ from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
 import random
 import string
 import os
+import subprocess
+import json
+
+@app.route('/api/search_rutube', methods=['POST'])
+@login_required
+def search_rutube():
+    """Поиск видео на RuTube через RepTube"""
+    data = request.get_json()
+    query = data.get('query', '').strip()
+    
+    if not query:
+        return jsonify({'error': 'Empty query'}), 400
+    
+    try:
+        # Вызываем reptube: ищем 5 результатов, подробный вывод, только RuTube
+        result = subprocess.run(
+            ['reptube', query, '-n', '5', '-v', '-ru'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode != 0:
+            return jsonify({'error': 'Search failed', 'details': result.stderr}), 500
+        
+        # Парсим вывод reptube
+        videos = []
+        current_video = {}
+        
+        for line in result.stdout.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Новая запись начинается с * [N]
+            if line.startswith('* ['):
+                if current_video and 'title' in current_video and 'url' in current_video:
+                    videos.append(current_video)
+                # Извлекаем название
+                title_match = re.search(r'\* \[\d+\] (.+?)(?: \(.*?\))?$', line)
+                current_video = {
+                    'title': title_match.group(1) if title_match else line,
+                    'url': '',
+                    'embed_url': '',
+                    'channel': '',
+                    'duration': ''
+                }
+            # Строка с URL
+            elif line.startswith('http') and 'url' not in current_video:
+                current_video['url'] = line
+                # Конвертируем в embed-ссылку
+                video_id = line.split('/')[-1]
+                current_video['embed_url'] = f"https://rutube.ru/play/embed/{video_id}"
+            # Строка с каналом в квадратных скобках
+            elif line.startswith('[') and 'channel' not in current_video:
+                channel_match = re.search(r'\[(.*?)\]', line)
+                if channel_match:
+                    current_video['channel'] = channel_match.group(1)
+        
+        # Добавляем последнее видео
+        if current_video and 'title' in current_video and 'url' in current_video:
+            videos.append(current_video)
+        
+        return jsonify({'results': videos})
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Search timeout'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
