@@ -2,7 +2,60 @@
 
 {% block title %}Мои комнаты{% endblock %}
 
+{% block content %}{% extends "base.html" %}
+
+{% block title %}Мои комнаты{% endblock %}
+
 {% block content %}
+<h1>🎬 Мои комнаты</h1>
+
+<div style="margin-bottom: 20px;">
+    <a href="{{ url_for('create_room') }}" class="btn" style="background: #28a745;">➕ Создать комнату</a>
+</div>
+
+<!-- Приглашения -->
+{% if invites %}
+<div class="form-card" style="margin-bottom: 20px;">
+    <h3>📨 Приглашения в комнаты</h3>
+    {% for invite in invites %}
+    <div style="padding: 10px; border-bottom: 1px solid #eee;">
+        <strong>{{ invite.room.name }}</strong> — пригласил {{ invite.from_user.username }}
+        <a href="{{ url_for('accept_room_invite', invite_id=invite.id) }}" class="btn" style="display: inline-block; width: auto; margin-left: 10px;">✅ Принять</a>
+        <a href="{{ url_for('reject_room_invite', invite_id=invite.id) }}" class="btn" style="display: inline-block; width: auto; background: #dc3545;">❌ Отклонить</a>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Мои комнаты -->
+<div class="form-card">
+    <h3>Мои комнаты</h3>
+    {% if rooms %}
+        {% for room in rooms %}
+        <div style="padding: 15px; border-bottom: 1px solid #eee;">
+            <div style="font-weight: 600;">{{ room.name }}</div>
+            <div style="font-size: 14px; color: #666;">{{ room.description or 'Без описания' }}</div>
+            <div style="font-size: 12px; color: #999; margin-top: 5px;">Код: {{ room.code }}</div>
+            <div style="margin-top: 10px;">
+                <a href="{{ url_for('room', room_id=room.id) }}" class="btn" style="display: inline-block; width: auto;">🎬 Войти</a>
+                <a href="{{ url_for('invite_to_room', room_id=room.id) }}" class="btn" style="display: inline-block; width: auto; background: #007aff;">👥 Пригласить друзей</a>
+                <a href="{{ url_for('leave_room', room_id=room.id) }}" class="btn" style="display: inline-block; width: auto; background: #dc3545;">🚪 Покинуть</a>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>У вас пока нет комнат. Создайте или присоединитесь по коду!</p>
+    {% endif %}
+</div>
+
+<div class="form-card" style="margin-top: 20px;">
+    <h3>🔗 Присоединиться по коду</h3>
+    <form method="POST" action="{{ url_for('join_room_code') }}">
+        <input type="text" name="code" placeholder="Введите код комнаты" required>
+        <button type="submit" class="btn">Присоединиться</button>
+    </form>
+</div>
+{% endblock %}
 <h1>🎬 Мои комнаты</h1>
 
 <div style="margin-bottom: 20px;">
