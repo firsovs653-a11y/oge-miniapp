@@ -51,167 +51,54 @@
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
-    // Явно указываем адрес WebSocket (текущий домен)
-    const socket = io(window.location.origin, { 
-        path: '/socket.io',
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000
-    });
-    
+    const socket = io(window.location.origin, { transports: ['websocket'] });
     const roomId = {{ room.id }};
     const video = document.getElementById('video-player');
-    let isLocalAction = false;
-    let isSyncing = false;
-    
-    // Диагностика подключения
-    socket.on('connect', () => {
-        console.log('✅ WebSocket connected');
-        socket.emit('join_room', { room_id: roomId });
-        socket.emit('get_state', { room_id: roomId });
-    });
-    
-    socket.on('connect_error', (error) => {
-        console.error('❌ WebSocket connection error:', error);
-    });
-    
-    socket.on('disconnect', (reason) => {
-        console.log('❌ WebSocket disconnected:', reason);
-    });
-    
-    // Функции управления
+
+    socket.emit('join', { room_id: roomId });
+
     function playVideo() {
-        if (isSyncing) return;
-        isLocalAction = true;
         video.play();
-        socket.emit('play', { 
-            room_id: roomId, 
-            current_time: video.currentTime 
-        });
-        console.log('📤 play emitted', { room_id: roomId, current_time: video.currentTime });
+        socket.emit('play', { room_id: roomId, current_time: video.currentTime });
     }
-    
+
     function pauseVideo() {
-        if (isSyncing) return;
-        isLocalAction = true;
         video.pause();
-        socket.emit('pause', { 
-            room_id: roomId, 
-            current_time: video.currentTime 
-        });
-        console.log('📤 pause emitted', { room_id: roomId, current_time: video.currentTime });
+        socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
     }
-    
+
     function changeVideo() {
         const url = document.getElementById('video-url').value;
         if (url) {
-            isLocalAction = true;
             document.getElementById('video-source').src = url;
             video.load();
-            socket.emit('change_video', { 
-                room_id: roomId, 
-                video_url: url 
-            });
-            console.log('📤 change_video emitted', { room_id: roomId, video_url: url });
+            socket.emit('change_video', { room_id: roomId, video_url: url });
         }
     }
-    
-    // WebSocket события (получение синхронизации)
-    socket.on('sync_play', (data) => {
-        console.log('📥 sync_play received', data);
-        if (!isLocalAction && !isSyncing) {
-            isSyncing = true;
+
+    socket.on('play_sync', (data) => {
+        if (Math.abs(video.currentTime - data.current_time) > 0.5) {
             video.currentTime = data.current_time;
-            video.play().then(() => {
-                isSyncing = false;
-            }).catch((err) => {
-                console.error('Play error:', err);
-                isSyncing = false;
-            });
         }
-        isLocalAction = false;
+        video.play();
     });
-    
-    socket.on('sync_pause', (data) => {
-        console.log('📥 sync_pause received', data);
-        if (!isLocalAction && !isSyncing) {
-            isSyncing = true;
-            video.currentTime = data.current_time;
-            video.pause();
-            isSyncing = false;
-        }
-        isLocalAction = false;
+
+    socket.on('pause_sync', (data) => {
+        video.currentTime = data.current_time;
+        video.pause();
     });
-    
-    socket.on('sync_seek', (data) => {
-        console.log('📥 sync_seek received', data);
-        if (!isLocalAction && !isSyncing) {
-            isSyncing = true;
-            video.currentTime = data.current_time;
-            isSyncing = false;
-        }
-        isLocalAction = false;
+
+    socket.on('seek_sync', (data) => {
+        video.currentTime = data.current_time;
     });
-    
-    socket.on('sync_change_video', (data) => {
-        console.log('📥 sync_change_video received', data);
-        if (!isLocalAction) {
-            document.getElementById('video-source').src = data.video_url;
-            video.load();
-        }
-        isLocalAction = false;
+
+    socket.on('video_change_sync', (data) => {
+        document.getElementById('video-source').src = data.video_url;
+        video.load();
     });
-    
-    socket.on('sync_state', (data) => {
-        console.log('📥 sync_state received', data);
-        if (data.video_url && !isLocalAction) {
-            document.getElementById('video-source').src = data.video_url;
-            video.load();
-        }
-        if (!isLocalAction && !isSyncing) {
-            isSyncing = true;
-            video.currentTime = data.current_time;
-            if (data.is_playing) {
-                video.play().then(() => {
-                    isSyncing = false;
-                }).catch(() => {
-                    isSyncing = false;
-                });
-            } else {
-                video.pause();
-                isSyncing = false;
-            }
-        }
-    });
-    
-    // Локальные события видео (если пользователь управляет встроенными контролами)
-    video.addEventListener('play', () => {
-        if (!isLocalAction && !isSyncing) {
-            socket.emit('play', { room_id: roomId, current_time: video.currentTime });
-        }
-        isLocalAction = false;
-    });
-    
-    video.addEventListener('pause', () => {
-        if (!isLocalAction && !isSyncing) {
-            socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
-        }
-        isLocalAction = false;
-    });
-    
+
     video.addEventListener('seeked', () => {
-        if (!isLocalAction && !isSyncing) {
-            socket.emit('seek', { room_id: roomId, current_time: video.currentTime });
-        }
-        isLocalAction = false;
+        socket.emit('seek', { room_id: roomId, current_time: video.currentTime });
     });
-    
-    // Периодическая синхронизация (каждые 5 секунд, на случай разрыва)
-    setInterval(() => {
-        if (!isSyncing && socket.connected) {
-            socket.emit('get_state', { room_id: roomId });
-        }
-    }, 5000);
 </script>
 {% endblock %}
