@@ -58,10 +58,9 @@
     let isLocalAction = false;
     let syncTimeout = null;
     
-    // Присоединяемся к комнате
     socket.emit('join', { room_id: roomId });
     
-    // ========== УПРАВЛЕНИЕ ==========
+    // ========== КНОПКИ ИНТЕРФЕЙСА ==========
     function playVideo() {
         if (isLocalAction) return;
         isLocalAction = true;
@@ -89,13 +88,35 @@
         }
     }
     
-    // ========== СИНХРОНИЗАЦИЯ С АДАПТИВНОЙ СКОРОСТЬЮ ==========
+    // ========== ПЕРЕХВАТ СОБЫТИЙ ВСТРОЕННОГО ПЛЕЕРА ==========
+    video.addEventListener('play', () => {
+        if (!isLocalAction) {
+            isLocalAction = true;
+            socket.emit('play', { room_id: roomId, current_time: video.currentTime });
+            setTimeout(() => { isLocalAction = false; }, 200);
+        }
+    });
+    
+    video.addEventListener('pause', () => {
+        if (!isLocalAction) {
+            isLocalAction = true;
+            socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
+            setTimeout(() => { isLocalAction = false; }, 200);
+        }
+    });
+    
+    video.addEventListener('seeked', () => {
+        if (!isLocalAction) {
+            socket.emit('seek', { room_id: roomId, current_time: video.currentTime });
+        }
+    });
+    
+    // ========== ПЛАВНАЯ СИНХРОНИЗАЦИЯ ==========
     function smoothSync(targetTime) {
         const currentTime = video.currentTime;
         const diff = targetTime - currentTime;
         const absDiff = Math.abs(diff);
         
-        // 1. Большое отставание (> 1.5 сек) — жесткая синхронизация
         if (absDiff > 1.5) {
             console.log(`⚠️ Жесткая синхронизация: отставание ${absDiff.toFixed(2)}с`);
             video.currentTime = targetTime;
@@ -103,19 +124,14 @@
             return;
         }
         
-        // 2. Маленькое отставание (< 0.3 сек) — игнорируем
         if (absDiff < 0.1) {
             if (video.paused) video.play();
             return;
         }
         
-        // 3. Среднее отставание — плавная подстройка через playbackRate
         console.log(`🔧 Плавная подстройка: отставание ${absDiff.toFixed(2)}с`);
         
-        // Сохраняем исходную скорость
         const originalRate = video.playbackRate;
-        
-        // Ускоряем или замедляем
         if (diff > 0) {
             video.playbackRate = Math.min(1.3, originalRate + 0.05);
         } else {
@@ -124,7 +140,6 @@
         
         if (video.paused) video.play();
         
-        // Возвращаем скорость к норме через 1-2 секунды
         if (syncTimeout) clearTimeout(syncTimeout);
         syncTimeout = setTimeout(() => {
             video.playbackRate = 1.0;
@@ -132,7 +147,7 @@
         }, 2000);
     }
     
-    // ========== WEBSOCKET СОБЫТИЯ ==========
+    // ========== WEBSOCKET ПРИЁМ ==========
     socket.on('play_sync', (data) => {
         if (isLocalAction) return;
         isLocalAction = true;
@@ -163,21 +178,6 @@
         setTimeout(() => { isLocalAction = false; }, 500);
     });
     
-    // Локальные события видео (если пользователь перематывает встроенными контролами)
-    video.addEventListener('seeked', () => {
-        if (!isLocalAction) {
-            socket.emit('seek', { room_id: roomId, current_time: video.currentTime });
-        }
-    });
-    
-    // Восстанавливаем скорость после локальной перемотки
-    video.addEventListener('ratechange', () => {
-        if (!isLocalAction && video.playbackRate !== 1.0) {
-            video.playbackRate = 1.0;
-        }
-    });
-    
-    // Подтверждение подключения
     socket.on('connect', () => {
         console.log('✅ WebSocket connected');
         socket.emit('join', { room_id: roomId });
