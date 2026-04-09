@@ -1,10 +1,14 @@
-from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
+import re
 import random
 import string
 import os
+import requests
+from bs4 import BeautifulSoup
+from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_socketio import SocketIO, join_room, emit
+from werkzeug.security import generate_password_hash, check_password_hash
+from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -15,6 +19,8 @@ db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 def generate_room_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
@@ -29,6 +35,45 @@ def inject_user():
 
 with app.app_context():
     db.create_all()
+
+# ==================== ПАРСЕР VK ВИДЕО ====================
+
+@app.route('/api/search_vk', methods=['POST'])
+@login_required
+def search_vk():
+    data = request.get_json()
+    query = data.get('query', '').strip()
+    
+    if not query:
+        return jsonify({'error': 'Empty query'}), 400
+    
+    try:
+        search_url = f"https://vk.com/video?q={query}&section=all"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(search_url, headers=headers)
+        response.encoding = 'utf-8'
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        videos = []
+        for item in soup.select('.video_item'):
+            link = item.get('href', '')
+            if '/video' in link:
+                match = re.search(r'video(-?\d+_\d+)', link)
+                if match:
+                    video_id = match.group(1)
+                    oid, vid = video_id.split('_')
+                    embed_url = f"https://vk.com/video_ext.php?oid={oid}&id={vid}"
+                    title_elem = item.select_one('.video_item_title')
+                    title = title_elem.text.strip() if title_elem else 'Без названия'
+                    videos.append({'title': title, 'embed_url': embed_url})
+        
+        if not videos:
+            return jsonify({'error': 'No videos found'}), 404
+        
+        return jsonify({'results': videos[:5]})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 
@@ -233,7 +278,40 @@ def leave_room_route(room_id):
         flash('Вы покинули комнату')
     return redirect(url_for('rooms'))
 
+# ==================== WEBSOCKET ====================
+
+@socketio.on('join')
+def on_join(data):
+    room = str(data['room_id'])
+    join_room(room)
+    print(f'Client joined room {room}')
+
+@socketio.on('play')
+def on_play(data):
+    room = str(data['room_id'])
+    time = data['current_time']
+    emit('play_sync', {'current_time': time}, room=room, include_self=False)
+
+@socketio.on('pause')
+def on_pause(data):
+    room = str(data['room_id'])
+    time = data['current_time']
+    emit('pause_sync', {'current_time': time}, room=room, include_self=False)
+
+@socketio.on('seek')
+def on_seek(data):
+    room = str(data['room_id'])
+    time = data['current_time']
+    emit('seek_sync', {'current_time': time}, room=room, include_self=False)
+
+@socketio.on('change_video')
+def on_change_video(data):
+    room = str(data['room_id'])
+    url = data['video_url']
+    print(f'Change video in room {room} to {url}')
+    emit('video_change_sync', {'video_url': url}, room=room, include_self=False)
+
 # ==================== ЗАПУСК ====================
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
