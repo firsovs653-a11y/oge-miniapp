@@ -20,7 +20,8 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-socketio = SocketIO(app, cors_allowed_origins="*")
+# ИСПРАВЛЕНИЕ: async_mode='threading'
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 def generate_room_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
@@ -36,7 +37,7 @@ def inject_user():
 with app.app_context():
     db.create_all()
 
-# ==================== ПОИСК VK ВИДЕО ====================
+# ==================== ПОИСК VK ВИДЕО (ПАРСЕР) ====================
 
 @app.route('/api/search_vk', methods=['POST'])
 @login_required
@@ -49,9 +50,7 @@ def search_vk():
     
     try:
         search_url = f"https://vk.com/video?q={query}&section=all"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
+        headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(search_url, headers=headers)
         soup = BeautifulSoup(response.text, 'html.parser')
         
@@ -66,12 +65,8 @@ def search_vk():
                     embed_url = f"https://vk.com/video_ext.php?oid={oid}&id={vid}"
                     title_elem = item.select_one('.video_item_title')
                     title = title_elem.text.strip() if title_elem else 'Без названия'
-                    videos.append({
-                        'title': title,
-                        'embed_url': embed_url,
-                        'duration': 0,
-                        'views': 0
-                    })
+                    videos.append({'title': title, 'embed_url': embed_url})
+        
         if not videos:
             return jsonify({'error': 'No videos found'}), 404
         
@@ -290,27 +285,6 @@ def on_join(data):
     room = str(data['room_id'])
     join_room(room)
     print(f'Client joined room {room}')
-
-@socketio.on('play')
-def on_play(data):
-    room = str(data['room_id'])
-    time = data['current_time']
-    print(f'Play in room {room} at {time}')
-    socketio.emit('play_sync', {'current_time': time}, room=room, include_self=False)
-
-@socketio.on('pause')
-def on_pause(data):
-    room = str(data['room_id'])
-    time = data['current_time']
-    print(f'Pause in room {room} at {time}')
-    socketio.emit('pause_sync', {'current_time': time}, room=room, include_self=False)
-
-@socketio.on('seek')
-def on_seek(data):
-    room = str(data['room_id'])
-    time = data['current_time']
-    print(f'Seek in room {room} to {time}')
-    socketio.emit('seek_sync', {'current_time': time}, room=room, include_self=False)
 
 @socketio.on('change_video')
 def on_change_video(data):
