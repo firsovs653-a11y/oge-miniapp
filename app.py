@@ -40,6 +40,8 @@ with app.app_context():
 
 # ==================== ПАРСЕР VK ВИДЕО ====================
 
+VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
+
 @app.route('/api/search_vk', methods=['POST'])
 @login_required
 def search_vk():
@@ -49,66 +51,42 @@ def search_vk():
     if not query:
         return jsonify({'error': 'Empty query'}), 400
     
+    if not VK_ACCESS_TOKEN:
+        return jsonify({'error': 'VK token not configured'}), 500
+    
     try:
-        search_url = f"https://vk.com/video?q={query}&section=all"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        response = requests.get(search_url, headers=headers)
+        url = "https://api.vk.com/method/video.search"
+        params = {
+            'q': query,
+            'access_token': VK_ACCESS_TOKEN,
+            'count': 10,
+            'sort': 2,
+            'hd': 1,
+            'adult': 1,
+            'v': '5.131'
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
         
-        # Отладка
-        print(f"🔍 Searching VK for: {query}")
-        print(f"📡 Response status: {response.status_code}")
-        print(f"📄 Response length: {len(response.content)}")
-        
-        # Пробуем разные кодировки
-        html = None
-        for encoding in ['utf-8', 'windows-1251', 'cp1251', 'latin1']:
-            try:
-                html = response.content.decode(encoding)
-                print(f"✅ Decoded with {encoding}")
-                break
-            except UnicodeDecodeError:
-                print(f"❌ Failed with {encoding}")
-                continue
-        
-        if not html:
-            return jsonify({'error': 'Failed to decode response'}), 500
-        
-        soup = BeautifulSoup(html, 'html.parser')
+        if 'error' in data:
+            return jsonify({'error': data['error']['error_msg']}), 500
         
         videos = []
-        video_items = soup.select('.video_item') or soup.select('.video-card') or soup.select('[data-video-id]')
+        for item in data.get('response', {}).get('items', []):
+            owner_id = item['owner_id']
+            video_id = item['id']
+            embed_url = f"https://vk.com/video_ext.php?oid={owner_id}&id={video_id}&hd=1"
+            videos.append({
+                'title': item['title'],
+                'embed_url': embed_url,
+                'duration': item.get('duration', 0),
+                'views': item.get('views', 0)
+            })
         
-        print(f"📹 Found {len(video_items)} video items")
-        
-        for item in video_items:
-            link = item.get('href', '')
-            if not link:
-                link_elem = item.select_one('a')
-                link = link_elem.get('href', '') if link_elem else ''
-            
-            if '/video' in link:
-                match = re.search(r'video(-?\d+_\d+)', link)
-                if match:
-                    video_id = match.group(1)
-                    oid, vid = video_id.split('_')
-                    embed_url = f"https://vk.com/video_ext.php?oid={oid}&id={vid}"
-                    title_elem = item.select_one('.video_item_title, .video-card__title, [data-title]')
-                    title = title_elem.text.strip() if title_elem else 'Без названия'
-                    title = title.encode('utf-8', errors='ignore').decode('utf-8')
-                    videos.append({'title': title, 'embed_url': embed_url})
-                    print(f"🎬 Found video: {title}")
-        
-        if not videos:
-            print("⚠️ No videos found")
-            return jsonify({'error': 'No videos found'}), 404
-        
-        print(f"✅ Returning {len(videos)} videos")
-        return jsonify({'results': videos[:5]})
+        return jsonify({'results': videos})
         
     except Exception as e:
-        print(f"❌ Exception: {e}")
         return jsonify({'error': str(e)}), 500
-
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 
 @app.route('/')
