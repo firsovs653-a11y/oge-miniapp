@@ -43,34 +43,10 @@ def search_vk():
     return jsonify({
         'results': [
             {
-                'title': 'Big Buck Bunny (полная версия)',
-                'embed_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+                'title': 'Тестовое видео (локальное)',
+                'embed_url': '/static/video/test.mp4',
                 'duration': 600,
-                'views': 100000
-            },
-            {
-                'title': 'For Bigger Blazes',
-                'embed_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-                'duration': 120,
-                'views': 80000
-            },
-            {
-                'title': 'For Bigger Funrides',
-                'embed_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFunrides.mp4',
-                'duration': 90,
-                'views': 75000
-            },
-            {
-                'title': 'For Bigger Joyrides',
-                'embed_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-                'duration': 110,
-                'views': 70000
-            },
-            {
-                'title': 'What Car',
-                'embed_url': 'https://storage.googleapis.com/gtv-videos-bucket/sample/WhatCar.mp4',
-                'duration': 60,
-                'views': 60000
+                'views': 1000
             }
         ]
     })
