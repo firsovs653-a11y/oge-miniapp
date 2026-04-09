@@ -48,33 +48,29 @@ def search_youtube():
     if not query:
         return jsonify({'error': 'Empty query'}), 400
     
-    if not YOUTUBE_API_KEY:
-        return jsonify({'error': 'YouTube API key not configured'}), 500
-    
     try:
-        url = "https://www.googleapis.com/youtube/v3/search"
-        params = {
-            'part': 'snippet',
-            'q': query,
-            'type': 'video',
-            'maxResults': 10,
-            'key': YOUTUBE_API_KEY
-        }
-        response = requests.get(url, params=params)
-        data = response.json()
+        search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        response = requests.get(search_url, headers=headers)
         
-        if 'error' in data:
-            return jsonify({'error': data['error']['message']}), 500
+        # Ищем videoId в ответе
+        video_ids = re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', response.text)
+        titles = re.findall(r'"title":{"runs":\[{"text":"(.*?)"}\]', response.text)
         
         videos = []
-        for item in data.get('items', []):
-            video_id = item['id']['videoId']
-            videos.append({
-                'title': item['snippet']['title'],
-                'video_id': video_id,
-                'channel': item['snippet']['channelTitle'],
-                'thumbnail': item['snippet']['thumbnails']['default']['url']
-            })
+        seen = set()
+        for i, video_id in enumerate(video_ids[:10]):
+            if video_id not in seen:
+                seen.add(video_id)
+                title = titles[i] if i < len(titles) else 'Без названия'
+                videos.append({
+                    'title': title,
+                    'video_id': video_id,
+                    'channel': 'YouTube'
+                })
+        
+        if not videos:
+            return jsonify({'error': 'No videos found'}), 404
         
         return jsonify({'results': videos})
         
