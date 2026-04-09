@@ -3,6 +3,6 @@
         "builder": "NIXPACKS"
     },
     "deploy": {
-        "startCommand": "bash start.sh"
+        "startCommand": "python app.py"
     }
 }
