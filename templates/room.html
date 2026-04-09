@@ -193,13 +193,20 @@
     }
     
     function selectVideo(embedUrl, title) {
-        console.log('selectVideo called with URL:', embedUrl);
-        loadVideo(embedUrl);
-        socket.emit('change_video', { room_id: roomId, video_url: embedUrl });
-        document.getElementById('search-results').style.display = 'none';
-        document.getElementById('search-query').value = '';
-        console.log(`🎬 Выбрано видео: ${title}`);
-    }
+    console.log('selectVideo called with URL:', embedUrl);
+    // Принудительно загружаем в video-плеер
+    currentIsIframe = false;
+    iframePlayer.style.display = 'none';
+    video.style.display = 'block';
+    document.getElementById('video-source').src = embedUrl;
+    video.load();
+    video.play().catch(e => console.log('Play error:', e));
+    
+    socket.emit('change_video', { room_id: roomId, video_url: embedUrl });
+    document.getElementById('search-results').style.display = 'none';
+    document.getElementById('search-query').value = '';
+    console.log(`🎬 Выбрано видео: ${title}`);
+}
     
     // ========== ОБРАБОТКА ОШИБОК ВИДЕО ==========
     video.addEventListener('error', (e) => {
