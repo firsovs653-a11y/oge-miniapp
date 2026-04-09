@@ -3,14 +3,11 @@ import random
 import string
 import os
 import requests
-from bs4 import BeautifulSoup
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
-
-# ==================== СОЗДАНИЕ ПРИЛОЖЕНИЯ ====================
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -38,55 +35,52 @@ def inject_user():
 with app.app_context():
     db.create_all()
 
-# ==================== ПАРСЕР VK ВИДЕО ====================
+# ==================== ПОИСК НА YOUTUBE ====================
 
-VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
+YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
 
-@app.route('/api/search_vk', methods=['POST'])
+@app.route('/api/search_youtube', methods=['POST'])
 @login_required
-def search_vk():
+def search_youtube():
     data = request.get_json()
     query = data.get('query', '').strip()
     
     if not query:
         return jsonify({'error': 'Empty query'}), 400
     
-    if not VK_ACCESS_TOKEN:
-        return jsonify({'error': 'VK token not configured'}), 500
+    if not YOUTUBE_API_KEY:
+        return jsonify({'error': 'YouTube API key not configured'}), 500
     
     try:
-        url = "https://api.vk.com/method/video.search"
+        url = "https://www.googleapis.com/youtube/v3/search"
         params = {
+            'part': 'snippet',
             'q': query,
-            'access_token': VK_ACCESS_TOKEN,
-            'count': 10,
-            'sort': 2,
-            'hd': 1,
-            'adult': 1,
-            'v': '5.131'
+            'type': 'video',
+            'maxResults': 10,
+            'key': YOUTUBE_API_KEY
         }
         response = requests.get(url, params=params)
         data = response.json()
         
         if 'error' in data:
-            return jsonify({'error': data['error']['error_msg']}), 500
+            return jsonify({'error': data['error']['message']}), 500
         
         videos = []
-        for item in data.get('response', {}).get('items', []):
-            owner_id = item['owner_id']
-            video_id = item['id']
-            embed_url = f"https://vk.com/video_ext.php?oid={owner_id}&id={video_id}&hd=1"
+        for item in data.get('items', []):
+            video_id = item['id']['videoId']
             videos.append({
-                'title': item['title'],
-                'embed_url': embed_url,
-                'duration': item.get('duration', 0),
-                'views': item.get('views', 0)
+                'title': item['snippet']['title'],
+                'video_id': video_id,
+                'channel': item['snippet']['channelTitle'],
+                'thumbnail': item['snippet']['thumbnails']['default']['url']
             })
         
         return jsonify({'results': videos})
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 
 @app.route('/')
@@ -327,9 +321,9 @@ def on_seek(data):
 @socketio.on('change_video')
 def on_change_video(data):
     room = str(data['room_id'])
-    url = data['video_url']
-    print(f'Change video in room {room} to {url}')
-    emit('video_change_sync', {'video_url': url}, room=room, include_self=False)
+    video_id = data['video_id']
+    print(f'Change video in room {room} to {video_id}')
+    emit('video_change_sync', {'video_id': video_id}, room=room, include_self=False)
 
 # ==================== ЗАПУСК ====================
 
