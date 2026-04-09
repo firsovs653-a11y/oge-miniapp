@@ -43,10 +43,10 @@ def search_vk():
     return jsonify({
         'results': [
             {
-                'title': 'Тестовое видео (MP4)',
-                'embed_url': 'https://www.w3schools.com/html/mov_bbb.mp4',
+                'title': 'Моё видео',
+                'embed_url': '/static/video/test.mp4',
                 'duration': 600,
-                'views': 50000
+                'views': 1000
             }
         ]
     })
