@@ -43,8 +43,8 @@ def search_vk():
     return jsonify({
         'results': [
             {
-                'title': 'Big Buck Bunny (YouTube)',
-                'embed_url': 'https://www.youtube.com/embed/aqz-KE-bpKQ',
+                'title': 'Тестовое видео VK',
+                'embed_url': 'https://vk.com/video_ext.php?oid=-123&id=456',
                 'duration': 600,
                 'views': 100000
             }
