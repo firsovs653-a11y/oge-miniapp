@@ -1,23 +1,28 @@
 import re
-from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from flask_socketio import SocketIO, join_room, leave_room, emit
-from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
 import random
 import string
 import os
-import subprocess
-import json
 import requests
+from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_socketio import SocketIO, join_room, leave_room
+from werkzeug.security import generate_password_hash, check_password_hash
+from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///kinobase.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-@app.route('/api/search_rutube', methods=['POST'])
-@login_required
 
+db.init_app(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+
+# ==================== ПОИСК НА VK ====================
 
 @app.route('/api/search_vk', methods=['POST'])
 @login_required
@@ -29,12 +34,11 @@ def search_vk():
         return jsonify({'error': 'Empty query'}), 400
     
     try:
-        # Поиск видео через VK API (публичный, без токена)
         url = "https://api.vk.com/method/video.search"
         params = {
             'q': query,
             'count': 10,
-            'sort': 2,  # по релевантности
+            'sort': 2,
             'hd': 1,
             'adult': 1,
             'v': '5.131'
@@ -63,30 +67,8 @@ def search_vk():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-def search_rutube():
-    data = request.get_json()
-    query = data.get('query', '').strip().lower()
-    
-    # База тестовых видео
-    videos_db = [
-        {'title': 'Матрица (1999) — трейлер', 'embed_url': 'https://rutube.ru/play/embed/7716bd3e665725c3c008ae7ab4ff02e2', 'channel': 'Кинопоиск'},
-        {'title': 'Матрица: Перезагрузка (2003)', 'embed_url': 'https://rutube.ru/play/embed/7716bd3e665725c3c008ae7ab4ff02e3', 'channel': 'Кинопоиск'},
-        {'title': 'Матрица: Революция (2003)', 'embed_url': 'https://rutube.ru/play/embed/7716bd3e665725c3c008ae7ab4ff02e4', 'channel': 'Кинопоиск'},
-        {'title': 'Терминатор 2 (1991)', 'embed_url': 'https://rutube.ru/play/embed/123', 'channel': 'Кино'}
-    ]
-    
-    # Фильтруем по запросу
-    results = [v for v in videos_db if query in v['title'].lower()]
-    
-    return jsonify({'results': results})
 
-db.init_app(app)
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-
-socketio = SocketIO(app, cors_allowed_origins="*")
-
+# ... остальные маршруты (регистрация, комнаты, etc.) ...
 def generate_room_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
