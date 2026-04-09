@@ -96,22 +96,19 @@
     
     // ========== ЗАГРУЗКА ВИДЕО ==========
     function loadVideo(url) {
-        let videoId = '';
-        const match = url.match(/(?:youtube\.com\/embed\/|youtu\.be\/|youtube\.com\/watch\?v=)([a-zA-Z0-9_-]+)/);
-        if (match) {
-            videoId = match[1];
-        } else {
-            alert('Неверная ссылка YouTube');
-            return;
-        }
-        
-        currentVideoId = videoId;
-        if (player && player.loadVideoById) {
-            player.loadVideoById(videoId);
-        } else {
-            document.getElementById('youtube-container').innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&origin=${window.location.origin}" frameborder="0" allowfullscreen></iframe>`;
-        }
+    let videoId = '';
+    let ownerId = '';
+    
+    // Парсим VK ссылку
+    const vkMatch = url.match(/vk\.com\/video_ext\.php\?oid=(-?\d+)&id=(\d+)/);
+    if (vkMatch) {
+        ownerId = vkMatch[1];
+        videoId = vkMatch[2];
+        url = `https://vk.com/video_ext.php?oid=${ownerId}&id=${videoId}&autoplay=0&hd=1`;
     }
+    
+    // ... остальная логика загрузки
+}
     
     // ========== КНОПКИ ИНТЕРФЕЙСА ==========
     function playVideo() {
