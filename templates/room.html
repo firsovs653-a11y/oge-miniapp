@@ -20,72 +20,14 @@
     <hr>
     
     <div style="margin-top: 20px;">
-        <h3>🎥 Синхропросмотр</h3>
-        
-        <div style="margin-bottom: 10px;">
-            <input type="text" id="search-query" placeholder="🔍 Найти видео VK..." style="width: 60%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
-            <button onclick="searchVK()" class="btn" style="width: 35%; background: #28a745;">🔍 Найти</button>
-        </div>
-        <div id="search-results" style="margin-bottom: 10px; display: none; background: white; border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;"></div>
-        
-        <div id="vk-player" style="width: 100%; aspect-ratio: 16 / 9;">
-            <iframe id="vk-iframe" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
+        <h3>🎥 Видео</h3>
+        <div style="width: 100%; aspect-ratio: 16 / 9;">
+            <iframe src="https://vk.com/video_ext.php?oid=-174502734&id=456239952" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
         </div>
     </div>
 </div>
 
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-<script>
-    const socket = io(window.location.origin, { transports: ['websocket'] });
-    const roomId = {{ room.id }};
-    const iframe = document.getElementById('vk-iframe');
-    
-    socket.emit('join', { room_id: roomId });
-    
-    function loadVideo(url) {
-        iframe.src = url;
-        socket.emit('change_video', { room_id: roomId, video_url: url });
-    }
-    
-    window.searchVK = function() {
-        const query = document.getElementById('search-query').value;
-        if (!query.trim()) return;
-        
-        const resultsDiv = document.getElementById('search-results');
-        resultsDiv.style.display = 'block';
-        resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск...</div>';
-        
-        fetch('/api/search_vk', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) {
-                resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${data.error}</div>`;
-                return;
-            }
-            resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">🎬 Результаты:</div>';
-            data.results.forEach(video => {
-                const item = document.createElement('div');
-                item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;';
-                item.onclick = () => {
-                    loadVideo(video.embed_url);
-                    resultsDiv.style.display = 'none';
-                };
-                item.innerHTML = `<div style="font-weight: 500;">${video.title}</div>`;
-                resultsDiv.appendChild(item);
-            });
-        });
-    };
-    
-    socket.on('video_change_sync', (data) => {
-        iframe.src = data.video_url;
-    });
-    
-    socket.on('connect', () => {
-        socket.emit('join', { room_id: roomId });
-    });
-</script>
+<div style="text-align: center; margin-top: 20px;">
+    <a href="{{ url_for('rooms') }}" class="btn" style="background: #6c757d; display: inline-block; width: auto;">← Назад к комнатам</a>
+</div>
 {% endblock %}
