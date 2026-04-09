@@ -84,17 +84,20 @@
     }
     
     function loadVideo(url) {
+        console.log('loadVideo called with URL:', url);
         if (isIframeUrl(url)) {
             currentIsIframe = true;
             video.style.display = 'none';
             iframePlayer.style.display = 'block';
             iframe.src = url;
+            console.log('Iframe mode, src set to:', iframe.src);
         } else {
             currentIsIframe = false;
             iframePlayer.style.display = 'none';
             video.style.display = 'block';
             document.getElementById('video-source').src = url;
             video.load();
+            console.log('Video mode, src set to:', url);
         }
     }
     
@@ -103,7 +106,6 @@
         if (isLocalAction) return;
         isLocalAction = true;
         if (currentIsIframe) {
-            // Для iframe плеера нет API синхронизации, только уведомление
             console.log('Play iframe (синхронизация только по времени)');
         } else {
             video.play();
@@ -181,6 +183,7 @@
     }
     
     function selectVideo(embedUrl, title) {
+        console.log('selectVideo called with URL:', embedUrl);
         loadVideo(embedUrl);
         socket.emit('change_video', { room_id: roomId, video_url: embedUrl });
         document.getElementById('search-results').style.display = 'none';
@@ -272,6 +275,7 @@
     socket.on('video_change_sync', (data) => {
         if (isLocalAction) return;
         isLocalAction = true;
+        console.log('video_change_sync received, URL:', data.video_url);
         loadVideo(data.video_url);
         setTimeout(() => { isLocalAction = false; }, 500);
     });
