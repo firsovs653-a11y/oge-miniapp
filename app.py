@@ -9,7 +9,10 @@ import string
 import os
 import subprocess
 import json
-
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///kinobase.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 @app.route('/api/search_rutube', methods=['POST'])
 @login_required
 def search_rutube():
