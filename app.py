@@ -35,57 +35,28 @@ def inject_user():
 with app.app_context():
     db.create_all()
 
-# ==================== ПОИСК НА VK ====================
-
-VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
+# ==================== ПОИСК НА VK (ЗАГЛУШКА) ====================
 
 @app.route('/api/search_vk', methods=['POST'])
 @login_required
 def search_vk():
-    data = request.get_json()
-    query = data.get('query', '').strip()
-    
-    if not query:
-        return jsonify({'error': 'Empty query'}), 400
-    
-    if not VK_ACCESS_TOKEN:
-        return jsonify({'error': 'VK token not configured'}), 500
-    
-    try:
-        url = "https://api.vk.com/method/video.search"
-        params = {
-            'q': query,
-            'access_token': VK_ACCESS_TOKEN,
-            'count': 10,
-            'sort': 2,
-            'hd': 1,
-            'adult': 1,
-            'v': '5.131'
-        }
-        
-        response = requests.get(url, params=params)
-        data = response.json()
-        
-        if 'error' in data:
-            return jsonify({'error': data['error']['error_msg']}), 500
-        
-        videos = []
-        for item in data.get('response', {}).get('items', []):
-            owner_id = item['owner_id']
-            video_id = item['id']
-            embed_url = f"https://vk.com/video_ext.php?oid={owner_id}&id={video_id}&hd=1"
-            
-            videos.append({
-                'title': item['title'],
-                'embed_url': embed_url,
-                'duration': item.get('duration', 0),
-                'views': item.get('views', 0)
-            })
-        
-        return jsonify({'results': videos})
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    # Заглушка — возвращает тестовые результаты поиска
+    return jsonify({
+        'results': [
+            {
+                'title': 'Матрица (1999) — тестовое видео 1',
+                'embed_url': 'https://vk.com/video_ext.php?oid=-123&id=456',
+                'duration': 8100,
+                'views': 100000
+            },
+            {
+                'title': 'Матрица: Перезагрузка (2003) — тестовое видео 2',
+                'embed_url': 'https://vk.com/video_ext.php?oid=-789&id=101',
+                'duration': 8100,
+                'views': 85000
+            }
+        ]
+    })
 
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 
