@@ -15,23 +15,23 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:/
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 @app.route('/api/search_rutube', methods=['POST'])
 @login_required
-@app.route('/api/search_rutube', methods=['POST'])
-@login_required
+
 def search_rutube():
-    print("🔥 search_rutube called")
-    return jsonify({
-        'results': [
-            {
-                'title': 'Матрица (1999) — тестовое видео',
-                'embed_url': 'https://rutube.ru/play/embed/7716bd3e665725c3c008ae7ab4ff02e2',
-                'channel': 'Тестовый канал'
-            }
-        ]
-    })
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///kinobase.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    data = request.get_json()
+    query = data.get('query', '').strip().lower()
+    
+    # База тестовых видео
+    videos_db = [
+        {'title': 'Матрица (1999) — трейлер', 'embed_url': 'https://rutube.ru/play/embed/7716bd3e665725c3c008ae7ab4ff02e2', 'channel': 'Кинопоиск'},
+        {'title': 'Матрица: Перезагрузка (2003)', 'embed_url': 'https://rutube.ru/play/embed/7716bd3e665725c3c008ae7ab4ff02e3', 'channel': 'Кинопоиск'},
+        {'title': 'Матрица: Революция (2003)', 'embed_url': 'https://rutube.ru/play/embed/7716bd3e665725c3c008ae7ab4ff02e4', 'channel': 'Кинопоиск'},
+        {'title': 'Терминатор 2 (1991)', 'embed_url': 'https://rutube.ru/play/embed/123', 'channel': 'Кино'}
+    ]
+    
+    # Фильтруем по запросу
+    results = [v for v in videos_db if query in v['title'].lower()]
+    
+    return jsonify({'results': results})
 
 db.init_app(app)
 login_manager = LoginManager()
