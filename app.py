@@ -21,8 +21,23 @@ login_manager.login_view = 'login'
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+def generate_room_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+@app.context_processor
+def inject_user():
+    return dict(current_user=current_user)
+
+with app.app_context():
+    db.create_all()
 
 # ==================== ПОИСК НА VK ====================
+
+VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 
 @app.route('/api/search_vk', methods=['POST'])
 @login_required
@@ -33,10 +48,14 @@ def search_vk():
     if not query:
         return jsonify({'error': 'Empty query'}), 400
     
+    if not VK_ACCESS_TOKEN:
+        return jsonify({'error': 'VK token not configured'}), 500
+    
     try:
         url = "https://api.vk.com/method/video.search"
         params = {
             'q': query,
+            'access_token': VK_ACCESS_TOKEN,
             'count': 10,
             'sort': 2,
             'hd': 1,
@@ -67,21 +86,6 @@ def search_vk():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-# ... остальные маршруты (регистрация, комнаты, etc.) ...
-def generate_room_code():
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-@app.context_processor
-def inject_user():
-    return dict(current_user=current_user)
-
-with app.app_context():
-    db.create_all()
 
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 
