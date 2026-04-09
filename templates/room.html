@@ -85,43 +85,42 @@
     
     // ========== ЗАГРУЗКА ВИДЕО С ПРЕДЗАГРУЗКОЙ ==========
     function loadVideo(url) {
-        console.log('loadVideo called with URL:', url);
-        
-        // Останавливаем предыдущий интервал проверки буфера
-        if (bufferCheckInterval) clearInterval(bufferCheckInterval);
-        
-        if (isIframeUrl(url)) {
-            currentIsIframe = true;
-            video.style.display = 'none';
-            iframePlayer.style.display = 'block';
-            iframe.src = url;
-            console.log('Iframe mode, src set to:', iframe.src);
-        } else {
-            currentIsIframe = false;
-            iframePlayer.style.display = 'none';
-            video.style.display = 'block';
-            document.getElementById('video-source').src = url;
-            video.load();
-            video.preload = 'auto';
-            
-            // Проверка буфера каждые 5 секунд
-            bufferCheckInterval = setInterval(() => {
-                if (video.buffered.length > 0) {
-                    const bufferedEnd = video.buffered.end(video.buffered.length - 1);
-                    const duration = video.duration;
-                    if (duration > 0 && bufferedEnd < duration - 10 && !video.paused) {
-                        console.log(`Buffering: ${bufferedEnd}/${duration}`);
-                    }
-                }
-                if (video.paused && video.currentTime > 0 && !video.ended) {
-                    console.log('Video stuck, restarting');
-                    video.play().catch(e => console.log('Play error:', e));
-                }
-            }, 5000);
-            
-            console.log('Video mode, src set to:', url);
+    console.log('loadVideo called with URL:', url);
+    currentIsIframe = false;
+    iframePlayer.style.display = 'none';
+    video.style.display = 'block';
+    
+    // Сбрасываем старый источник
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    
+    // Устанавливаем новый источник
+    document.getElementById('video-source').src = url;
+    video.load();
+    video.preload = 'auto';
+    
+    // Увеличиваем буфер
+    video.addEventListener('canplay', () => {
+        console.log('Video can play, duration:', video.duration);
+        video.play().catch(e => console.error('Play error:', e));
+    });
+    
+    // Проверка загрузки
+    let lastBuffered = 0;
+    let checkInterval = setInterval(() => {
+        if (video.buffered.length > 0) {
+            const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+            if (bufferedEnd > lastBuffered) {
+                console.log(`Buffered: ${bufferedEnd.toFixed(1)}s / ${video.duration.toFixed(1)}s`);
+                lastBuffered = bufferedEnd;
+            }
         }
-    }
+        if (video.ended) {
+            clearInterval(checkInterval);
+        }
+    }, 2000);
+}
     
     // ========== КНОПКИ ИНТЕРФЕЙСА ==========
     function playVideo() {
