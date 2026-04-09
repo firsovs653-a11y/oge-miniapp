@@ -9,6 +9,8 @@ import string
 import os
 import subprocess
 import json
+import requests
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///kinobase.db')
@@ -16,6 +18,51 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 @app.route('/api/search_rutube', methods=['POST'])
 @login_required
 
+
+@app.route('/api/search_vk', methods=['POST'])
+@login_required
+def search_vk():
+    data = request.get_json()
+    query = data.get('query', '').strip()
+    
+    if not query:
+        return jsonify({'error': 'Empty query'}), 400
+    
+    try:
+        # Поиск видео через VK API (публичный, без токена)
+        url = "https://api.vk.com/method/video.search"
+        params = {
+            'q': query,
+            'count': 10,
+            'sort': 2,  # по релевантности
+            'hd': 1,
+            'adult': 1,
+            'v': '5.131'
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        if 'error' in data:
+            return jsonify({'error': data['error']['error_msg']}), 500
+        
+        videos = []
+        for item in data.get('response', {}).get('items', []):
+            owner_id = item['owner_id']
+            video_id = item['id']
+            embed_url = f"https://vk.com/video_ext.php?oid={owner_id}&id={video_id}&hd=1"
+            
+            videos.append({
+                'title': item['title'],
+                'embed_url': embed_url,
+                'duration': item.get('duration', 0),
+                'views': item.get('views', 0)
+            })
+        
+        return jsonify({'results': videos})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 def search_rutube():
     data = request.get_json()
     query = data.get('query', '').strip().lower()
