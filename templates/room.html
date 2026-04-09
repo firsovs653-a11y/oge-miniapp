@@ -137,49 +137,49 @@
     }
     
     // ========== ПОИСК НА RUTUBE ==========
-    function searchRutube() {
-        const query = document.getElementById('search-query').value;
-        if (!query.trim()) return;
+    function searchVK() {
+    const query = document.getElementById('search-query').value;
+    if (!query.trim()) return;
+    
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск фильмов на VK...</div>';
+    
+    fetch('/api/search_vk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) {
+            resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${data.error}</div>`;
+            return;
+        }
         
-        const resultsDiv = document.getElementById('search-results');
-        resultsDiv.style.display = 'block';
-        resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск...</div>';
+        if (!data.results || data.results.length === 0) {
+            resultsDiv.innerHTML = '<div style="padding: 10px;">😔 Фильмы не найдены</div>';
+            return;
+        }
         
-        fetch('/api/search_rutube', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) {
-                resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${data.error}</div>`;
-                return;
-            }
-            
-            if (!data.results || data.results.length === 0) {
-                resultsDiv.innerHTML = '<div style="padding: 10px;">😔 Ничего не найдено</div>';
-                return;
-            }
-            
-            resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">📹 Результаты поиска:</div>';
-            data.results.forEach(videoItem => {
-                const item = document.createElement('div');
-                item.className = 'search-result';
-                item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;';
-                item.onmouseover = () => item.style.background = '#f5f5f5';
-                item.onmouseout = () => item.style.background = 'white';
-                item.onclick = () => selectVideo(videoItem.embed_url, videoItem.title);
-                item.innerHTML = `
-                    <div style="font-weight: 500;">${videoItem.title}</div>
-                    <div style="font-size: 12px; color: #666;">${videoItem.channel || 'RuTube'}</div>
-                `;
-                resultsDiv.appendChild(item);
-            });
-        })
-        .catch(err => {
-            resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${err}</div>`;
+        resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">🎬 Фильмы на VK:</div>';
+        data.results.forEach(video => {
+            const item = document.createElement('div');
+            item.className = 'search-result';
+            item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;';
+            item.onmouseover = () => item.style.background = '#f5f5f5';
+            item.onmouseout = () => item.style.background = 'white';
+            item.onclick = () => selectVideo(video.embed_url, video.title);
+            item.innerHTML = `
+                <div style="font-weight: 500;">${video.title}</div>
+                <div style="font-size: 12px; color: #666;">${Math.floor(video.duration / 60)} мин • ${video.views} просмотров</div>
+            `;
+            resultsDiv.appendChild(item);
         });
+    })
+    .catch(err => {
+        resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${err}</div>`;
+    });
     }
     
     function selectVideo(embedUrl, title) {
