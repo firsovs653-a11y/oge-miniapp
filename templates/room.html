@@ -23,26 +23,26 @@
     <div style="margin-top: 20px;">
         <h3>🎥 Синхропросмотр</h3>
         
-        <!-- Поиск VK (заглушка) -->
+        <!-- Поиск -->
         <div style="margin-bottom: 10px;">
-            <input type="text" id="search-query" placeholder="🔍 Найти фильм (тестовая заглушка)" style="width: 60%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
-            <button onclick="searchVK()" class="btn" style="width: 35%; background: #28a745;">🔍 Найти фильм</button>
+            <input type="text" id="search-query" placeholder="🔍 Найти тестовое видео..." style="width: 60%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
+            <button onclick="searchVK()" class="btn" style="width: 35%; background: #28a745;">🔍 Найти</button>
         </div>
         <div id="search-results" style="margin-bottom: 10px; display: none; background: white; border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;"></div>
         
         <!-- Ручной ввод ссылки -->
         <div style="margin-bottom: 10px;">
-            <input type="text" id="video-url" placeholder="Или вставь ссылку на видео (MP4, embed VK/YouTube)" style="width: 70%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
+            <input type="text" id="video-url" placeholder="Или вставь ссылку на MP4 видео" style="width: 70%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
             <button onclick="changeVideo()" class="btn" style="width: 25%;">Загрузить</button>
         </div>
         
         <!-- Плеер для MP4 -->
-        <video id="video-player" width="100%" controls style="border-radius: 16px; background: black; display: none;">
+        <video id="video-player" width="100%" controls style="border-radius: 16px; background: black; display: block;">
             <source id="video-source" src="" type="video/mp4">
             Ваш браузер не поддерживает видео
         </video>
         
-        <!-- Плеер для VK/YouTube (iframe) -->
+        <!-- Плеер для iframe (скрыт по умолчанию) -->
         <div id="iframe-player" style="display: none; width: 100%; aspect-ratio: 16 / 9;">
             <iframe id="iframe-src" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
         </div>
@@ -53,9 +53,8 @@
         </div>
         
         <p style="font-size: 12px; color: #999; margin-top: 10px;">
-            🔍 Поиск VK — тестовая заглушка (2 тестовых видео)<br>
-            📹 MP4: прямая ссылка на видеофайл<br>
-            🔗 VK/YouTube: embed-ссылка
+            📹 Поддерживаются только прямые MP4-ссылки<br>
+            🔍 В поиске — тестовые видео
         </p>
     </div>
 </div>
@@ -75,6 +74,7 @@
     let isLocalAction = false;
     let syncTimeout = null;
     let currentIsIframe = false;
+    let bufferCheckInterval = null;
     
     socket.emit('join', { room_id: roomId });
     
@@ -83,8 +83,13 @@
         return url && (url.includes('vk.com/video_ext.php') || url.includes('youtube.com/embed/'));
     }
     
+    // ========== ЗАГРУЗКА ВИДЕО С ПРЕДЗАГРУЗКОЙ ==========
     function loadVideo(url) {
         console.log('loadVideo called with URL:', url);
+        
+        // Останавливаем предыдущий интервал проверки буфера
+        if (bufferCheckInterval) clearInterval(bufferCheckInterval);
+        
         if (isIframeUrl(url)) {
             currentIsIframe = true;
             video.style.display = 'none';
@@ -97,6 +102,23 @@
             video.style.display = 'block';
             document.getElementById('video-source').src = url;
             video.load();
+            video.preload = 'auto';
+            
+            // Проверка буфера каждые 5 секунд
+            bufferCheckInterval = setInterval(() => {
+                if (video.buffered.length > 0) {
+                    const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+                    const duration = video.duration;
+                    if (duration > 0 && bufferedEnd < duration - 10 && !video.paused) {
+                        console.log(`Buffering: ${bufferedEnd}/${duration}`);
+                    }
+                }
+                if (video.paused && video.currentTime > 0 && !video.ended) {
+                    console.log('Video stuck, restarting');
+                    video.play().catch(e => console.log('Play error:', e));
+                }
+            }, 5000);
+            
             console.log('Video mode, src set to:', url);
         }
     }
@@ -106,9 +128,9 @@
         if (isLocalAction) return;
         isLocalAction = true;
         if (currentIsIframe) {
-            console.log('Play iframe (синхронизация только по времени)');
+            console.log('Play iframe');
         } else {
-            video.play();
+            video.play().catch(e => console.error('Play error:', e));
             socket.emit('play', { room_id: roomId, current_time: video.currentTime });
         }
         setTimeout(() => { isLocalAction = false; }, 200);
@@ -118,7 +140,7 @@
         if (isLocalAction) return;
         isLocalAction = true;
         if (currentIsIframe) {
-            console.log('Pause iframe (синхронизация только по времени)');
+            console.log('Pause iframe');
         } else {
             video.pause();
             socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
@@ -136,14 +158,14 @@
         }
     }
     
-    // ========== ПОИСК НА VK (ЗАГЛУШКА) ==========
+    // ========== ПОИСК ==========
     function searchVK() {
         const query = document.getElementById('search-query').value;
         if (!query.trim()) return;
         
         const resultsDiv = document.getElementById('search-results');
         resultsDiv.style.display = 'block';
-        resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск (тестовая заглушка)...</div>';
+        resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск...</div>';
         
         fetch('/api/search_vk', {
             method: 'POST',
@@ -158,11 +180,11 @@
             }
             
             if (!data.results || data.results.length === 0) {
-                resultsDiv.innerHTML = '<div style="padding: 10px;">😔 Фильмы не найдены (заглушка)</div>';
+                resultsDiv.innerHTML = '<div style="padding: 10px;">😔 Ничего не найдено</div>';
                 return;
             }
             
-            resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">🎬 Результаты поиска (тестовые):</div>';
+            resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">🎬 Результаты:</div>';
             data.results.forEach(video => {
                 const item = document.createElement('div');
                 item.className = 'search-result';
@@ -191,7 +213,13 @@
         console.log(`🎬 Выбрано видео: ${title}`);
     }
     
-    // ========== ПЕРЕХВАТ СОБЫТИЙ ВСТРОЕННОГО ПЛЕЕРА ==========
+    // ========== ОБРАБОТКА ОШИБОК ВИДЕО ==========
+    video.addEventListener('error', (e) => {
+        console.error('Video error:', e);
+        alert('Ошибка загрузки видео. Попробуй другую ссылку.');
+    });
+    
+    // ========== ПЕРЕХВАТ СОБЫТИЙ ПЛЕЕРА ==========
     video.addEventListener('play', () => {
         if (!isLocalAction) {
             isLocalAction = true;
@@ -214,7 +242,7 @@
         }
     });
     
-    // ========== ПЛАВНАЯ СИНХРОНИЗАЦИЯ (только для video) ==========
+    // ========== ПЛАВНАЯ СИНХРОНИЗАЦИЯ ==========
     function smoothSync(targetTime) {
         const currentTime = video.currentTime;
         const diff = targetTime - currentTime;
