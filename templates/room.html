@@ -83,33 +83,16 @@
         return url && (url.includes('vk.com/video_ext.php') || url.includes('youtube.com/embed/'));
     }
     
-    // ========== ЗАГРУЗКА ВИДЕО С ПРЕДЗАГРУЗКОЙ ==========
+    // ========== ЗАГРУЗКА ВИДЕО ==========
     function loadVideo(url) {
-    console.log('loadVideo called with URL:', url);
-    // Принудительно используем video-плеер, игнорируем iframe
-    currentIsIframe = false;
-    iframePlayer.style.display = 'none';
-    video.style.display = 'block';
-    document.getElementById('video-source').src = url;
-    video.load();
-    video.play().catch(e => console.log('Play error:', e));
-}
-    
-    // Проверка загрузки
-    let lastBuffered = 0;
-    let checkInterval = setInterval(() => {
-        if (video.buffered.length > 0) {
-            const bufferedEnd = video.buffered.end(video.buffered.length - 1);
-            if (bufferedEnd > lastBuffered) {
-                console.log(`Buffered: ${bufferedEnd.toFixed(1)}s / ${video.duration.toFixed(1)}s`);
-                lastBuffered = bufferedEnd;
-            }
-        }
-        if (video.ended) {
-            clearInterval(checkInterval);
-        }
-    }, 2000);
-}
+        console.log('loadVideo called with URL:', url);
+        currentIsIframe = false;
+        iframePlayer.style.display = 'none';
+        video.style.display = 'block';
+        document.getElementById('video-source').src = url;
+        video.load();
+        video.play().catch(e => console.log('Play error:', e));
+    }
     
     // ========== КНОПКИ ИНТЕРФЕЙСА ==========
     function playVideo() {
@@ -146,8 +129,24 @@
         }
     }
     
-    // ========== ПОИСК ==========
-    function searchVK() {
+    // ========== ВЫБОР ВИДЕО ИЗ ПОИСКА ==========
+    function selectVideo(embedUrl, title) {
+        console.log('selectVideo called with URL:', embedUrl);
+        currentIsIframe = false;
+        iframePlayer.style.display = 'none';
+        video.style.display = 'block';
+        document.getElementById('video-source').src = embedUrl;
+        video.load();
+        video.play().catch(e => console.log('Play error:', e));
+        
+        socket.emit('change_video', { room_id: roomId, video_url: embedUrl });
+        document.getElementById('search-results').style.display = 'none';
+        document.getElementById('search-query').value = '';
+        console.log(`🎬 Выбрано видео: ${title}`);
+    }
+    
+    // ========== ПОИСК (ГЛОБАЛЬНАЯ ФУНКЦИЯ) ==========
+    window.searchVK = function() {
         const query = document.getElementById('search-query').value;
         if (!query.trim()) return;
         
@@ -175,38 +174,16 @@
             resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">🎬 Результаты:</div>';
             data.results.forEach(video => {
                 const item = document.createElement('div');
-                item.className = 'search-result';
-                item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;';
-                item.onmouseover = () => item.style.background = '#f5f5f5';
-                item.onmouseout = () => item.style.background = 'white';
+                item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;';
                 item.onclick = () => selectVideo(video.embed_url, video.title);
-                item.innerHTML = `
-                    <div style="font-weight: 500;">${video.title}</div>
-                    <div style="font-size: 12px; color: #666;">${Math.floor(video.duration / 60)} мин • ${video.views} просмотров</div>
-                `;
+                item.innerHTML = `<div style="font-weight: 500;">${video.title}</div>`;
                 resultsDiv.appendChild(item);
             });
         })
         .catch(err => {
             resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${err}</div>`;
         });
-    }
-    
-    function selectVideo(embedUrl, title) {
-    console.log('selectVideo called with URL:', embedUrl);
-    // Принудительно загружаем в video-плеер
-    currentIsIframe = false;
-    iframePlayer.style.display = 'none';
-    video.style.display = 'block';
-    document.getElementById('video-source').src = embedUrl;
-    video.load();
-    video.play().catch(e => console.log('Play error:', e));
-    
-    socket.emit('change_video', { room_id: roomId, video_url: embedUrl });
-    document.getElementById('search-results').style.display = 'none';
-    document.getElementById('search-query').value = '';
-    console.log(`🎬 Выбрано видео: ${title}`);
-}
+    };
     
     // ========== ОБРАБОТКА ОШИБОК ВИДЕО ==========
     video.addEventListener('error', (e) => {
@@ -307,43 +284,5 @@
         console.log('✅ WebSocket connected');
         socket.emit('join', { room_id: roomId });
     });
-window.searchVK = function() {
-    const query = document.getElementById('search-query').value;
-    if (!query.trim()) return;
-    
-    const resultsDiv = document.getElementById('search-results');
-    resultsDiv.style.display = 'block';
-    resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск...</div>';
-    
-    fetch('/api/search_vk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.error) {
-            resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${data.error}</div>`;
-            return;
-        }
-        
-        if (!data.results || data.results.length === 0) {
-            resultsDiv.innerHTML = '<div style="padding: 10px;">😔 Ничего не найдено</div>';
-            return;
-        }
-        
-        resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">🎬 Результаты:</div>';
-        data.results.forEach(video => {
-            const item = document.createElement('div');
-            item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;';
-            item.onclick = () => selectVideo(video.embed_url, video.title);
-            item.innerHTML = `<div style="font-weight: 500;">${video.title}</div>`;
-            resultsDiv.appendChild(item);
-        });
-    })
-    .catch(err => {
-        resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${err}</div>`;
-    });
-};
 </script>
 {% endblock %}
