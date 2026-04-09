@@ -47,18 +47,6 @@ def search_vk():
                 'embed_url': 'https://www.youtube.com/embed/aqz-KE-bpKQ',
                 'duration': 600,
                 'views': 100000
-            },
-            {
-                'title': 'Sintel (YouTube)',
-                'embed_url': 'https://www.youtube.com/embed/eRsGyueVLvQ',
-                'duration': 900,
-                'views': 80000
-            },
-            {
-                'title': 'Tears of Steel (YouTube)',
-                'embed_url': 'https://www.youtube.com/embed/R6MlUcmOul8',
-                'duration': 720,
-                'views': 60000
             }
         ]
     })
