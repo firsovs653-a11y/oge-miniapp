@@ -29,6 +29,13 @@
         </div>
         <div id="search-results" style="margin-bottom: 10px; display: none; background: white; border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;"></div>
         
+        <!-- Подсказка для входа (только на телефоне) -->
+        <div id="login-hint" style="display: none; text-align: center; margin: 20px; padding: 15px; background: #fff3cd; border-radius: 12px;">
+            <p>⚠️ Для синхронизации на телефоне необходимо войти в Google</p>
+            <a id="youtube-link" href="#" target="_blank" class="btn" style="background: #ff0000; color: white;">🎬 Открыть видео на YouTube</a>
+            <p style="margin-top: 10px; font-size: 12px;">Нажми на ссылку, войди в Google (один раз), затем вернись</p>
+        </div>
+        
         <!-- YouTube плеер -->
         <div id="youtube-player" style="width: 100%; aspect-ratio: 16 / 9;">
             <div id="youtube-container"></div>
@@ -38,10 +45,6 @@
             <button onclick="playVideo()" class="btn" style="flex: 1;">▶ Play</button>
             <button onclick="pauseVideo()" class="btn" style="flex: 1;">⏸ Pause</button>
         </div>
-        
-        <p style="font-size: 12px; color: #999; margin-top: 10px;">
-            💡 На телефоне может потребоваться вход в Google для синхронизации
-        </p>
     </div>
 </div>
 
@@ -53,6 +56,9 @@
     
     let player = null;
     let isLocalAction = false;
+    
+    // Определяем устройство
+    const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
     
     socket.emit('join', { room_id: roomId });
     
@@ -110,6 +116,9 @@
         if (player && player.loadVideoById) {
             player.loadVideoById(videoId);
         }
+        // Обновляем ссылку для входа
+        const normalUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        document.getElementById('youtube-link').href = normalUrl;
     }
     
     // ========== ПОИСК ==========
@@ -152,6 +161,11 @@
         socket.emit('change_video', { room_id: roomId, video_id: videoId });
         document.getElementById('search-results').style.display = 'none';
         document.getElementById('search-query').value = '';
+        
+        // Показываем подсказку только на телефоне
+        if (isMobile) {
+            document.getElementById('login-hint').style.display = 'block';
+        }
     }
     
     // ========== WEBSOCKET СИНХРОНИЗАЦИЯ ==========
