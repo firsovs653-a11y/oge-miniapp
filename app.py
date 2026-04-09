@@ -8,6 +8,10 @@ def search_vk():
         return jsonify({'error': 'Empty query'}), 400
     
     try:
+        print(f"🔍 Searching VK for: {query}")
+        print(f"📡 Response status: {response.status_code}")
+        print(f"📄 Response length: {len(response.content)}")
+        print(f"🔤 First 200 bytes: {response.content[:200]}")
         search_url = f"https://vk.com/video?q={query}&section=all"
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(search_url, headers=headers)
