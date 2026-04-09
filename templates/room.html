@@ -85,7 +85,16 @@
     
     // ========== ЗАГРУЗКА ВИДЕО ==========
     function loadVideo(url) {
-        console.log('loadVideo called with URL:', url);
+    console.log('loadVideo called with URL:', url);
+    if (url.includes('youtube.com/embed/') || url.includes('vk.com/video_ext.php')) {
+        // Iframe режим
+        currentIsIframe = true;
+        video.style.display = 'none';
+        iframePlayer.style.display = 'block';
+        iframe.src = url;
+        console.log('Iframe mode, src set to:', iframe.src);
+    } else {
+        // Video режим (MP4)
         currentIsIframe = false;
         iframePlayer.style.display = 'none';
         video.style.display = 'block';
@@ -93,6 +102,7 @@
         video.load();
         video.play().catch(e => console.log('Play error:', e));
     }
+}
     
     // ========== КНОПКИ ИНТЕРФЕЙСА ==========
     function playVideo() {
@@ -131,19 +141,13 @@
     
     // ========== ВЫБОР ВИДЕО ИЗ ПОИСКА ==========
     function selectVideo(embedUrl, title) {
-        console.log('selectVideo called with URL:', embedUrl);
-        currentIsIframe = false;
-        iframePlayer.style.display = 'none';
-        video.style.display = 'block';
-        document.getElementById('video-source').src = embedUrl;
-        video.load();
-        video.play().catch(e => console.log('Play error:', e));
-        
-        socket.emit('change_video', { room_id: roomId, video_url: embedUrl });
-        document.getElementById('search-results').style.display = 'none';
-        document.getElementById('search-query').value = '';
-        console.log(`🎬 Выбрано видео: ${title}`);
-    }
+    console.log('selectVideo called with URL:', embedUrl);
+    loadVideo(embedUrl);  // теперь loadVideo сам решит, что делать
+    socket.emit('change_video', { room_id: roomId, video_url: embedUrl });
+    document.getElementById('search-results').style.display = 'none';
+    document.getElementById('search-query').value = '';
+    console.log(`🎬 Выбрано видео: ${title}`);
+}
     
     // ========== ПОИСК (ГЛОБАЛЬНАЯ ФУНКЦИЯ) ==========
     window.searchVK = function() {
