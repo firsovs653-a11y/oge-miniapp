@@ -22,27 +22,14 @@
     <div style="margin-top: 20px;">
         <h3>🎥 Синхропросмотр</h3>
         
-        <!-- Поиск -->
         <div style="margin-bottom: 10px;">
             <input type="text" id="search-query" placeholder="🔍 Найти видео VK..." style="width: 60%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
             <button onclick="searchVK()" class="btn" style="width: 35%; background: #28a745;">🔍 Найти</button>
         </div>
         <div id="search-results" style="margin-bottom: 10px; display: none; background: white; border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;"></div>
         
-        <!-- Ручной ввод ссылки -->
-        <div style="margin-bottom: 10px;">
-            <input type="text" id="video-url" placeholder="Или вставь ссылку VK" style="width: 70%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
-            <button onclick="changeVideo()" class="btn" style="width: 25%;">Загрузить</button>
-        </div>
-        
-        <!-- VK плеер -->
         <div id="vk-player" style="width: 100%; aspect-ratio: 16 / 9;">
             <iframe id="vk-iframe" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
-        </div>
-        
-        <div style="margin-top: 10px; display: flex; gap: 10px;">
-            <button onclick="playVideo()" class="btn" style="flex: 1;">▶ Play</button>
-            <button onclick="pauseVideo()" class="btn" style="flex: 1;">⏸ Pause</button>
         </div>
     </div>
 </div>
@@ -53,28 +40,11 @@
     const roomId = {{ room.id }};
     const iframe = document.getElementById('vk-iframe');
     
-    let isLocalAction = false;
-    
     socket.emit('join', { room_id: roomId });
     
     function loadVideo(url) {
         iframe.src = url;
-    }
-    
-    function playVideo() {
-        alert('Управление видео через плеер VK');
-    }
-    
-    function pauseVideo() {
-        alert('Управление видео через плеер VK');
-    }
-    
-    function changeVideo() {
-        const url = document.getElementById('video-url').value;
-        if (url) {
-            loadVideo(url);
-            socket.emit('change_video', { room_id: roomId, video_url: url });
-        }
+        socket.emit('change_video', { room_id: roomId, video_url: url });
     }
     
     window.searchVK = function() {
@@ -102,7 +72,6 @@
                 item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;';
                 item.onclick = () => {
                     loadVideo(video.embed_url);
-                    socket.emit('change_video', { room_id: roomId, video_url: video.embed_url });
                     resultsDiv.style.display = 'none';
                 };
                 item.innerHTML = `<div style="font-weight: 500;">${video.title}</div>`;
@@ -112,10 +81,7 @@
     };
     
     socket.on('video_change_sync', (data) => {
-        if (isLocalAction) return;
-        isLocalAction = true;
-        loadVideo(data.video_url);
-        setTimeout(() => { isLocalAction = false; }, 500);
+        iframe.src = data.video_url;
     });
     
     socket.on('connect', () => {
