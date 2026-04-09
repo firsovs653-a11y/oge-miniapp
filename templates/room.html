@@ -23,8 +23,16 @@
     <div style="margin-top: 20px;">
         <h3>🎥 Синхропросмотр</h3>
         
+        <!-- Поиск RuTube -->
         <div style="margin-bottom: 10px;">
-            <input type="text" id="video-url" placeholder="Ссылка на YouTube (embed) или MP4" style="width: 70%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
+            <input type="text" id="search-query" placeholder="🔍 Найти фильм на RuTube..." style="width: 60%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
+            <button onclick="searchRutube()" class="btn" style="width: 35%; background: #28a745;">Найти</button>
+        </div>
+        <div id="search-results" style="margin-bottom: 10px; display: none; background: white; border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;"></div>
+        
+        <!-- Ручной ввод ссылки -->
+        <div style="margin-bottom: 10px;">
+            <input type="text" id="video-url" placeholder="Или вставь прямую ссылку на видео (MP4, embed YouTube/RuTube)" style="width: 70%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
             <button onclick="changeVideo()" class="btn" style="width: 25%;">Загрузить</button>
         </div>
         
@@ -40,7 +48,8 @@
         
         <p style="font-size: 12px; color: #999; margin-top: 10px;">
             💡 Для YouTube используйте ссылку формата: https://www.youtube.com/embed/VIDEO_ID<br>
-            📹 MP4: https://www.w3schools.com/html/mov_bbb.mp4
+            📹 MP4: https://www.w3schools.com/html/mov_bbb.mp4<br>
+            🔍 Поиск работает по RuTube
         </p>
     </div>
 </div>
@@ -71,7 +80,7 @@
     
     function pauseVideo() {
         if (isLocalAction) return;
-        isLocalAction = true;
+        isLocalAction =true;
         video.pause();
         socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
         setTimeout(() => { isLocalAction = false; }, 200);
@@ -86,6 +95,61 @@
             socket.emit('change_video', { room_id: roomId, video_url: url });
             setTimeout(() => { isLocalAction = false; }, 500);
         }
+    }
+    
+    // ========== ПОИСК НА RUTUBE ==========
+    function searchRutube() {
+        const query = document.getElementById('search-query').value;
+        if (!query.trim()) return;
+        
+        const resultsDiv = document.getElementById('search-results');
+        resultsDiv.style.display = 'block';
+        resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск...</div>';
+        
+        fetch('/api/search_rutube', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${data.error}</div>`;
+                return;
+            }
+            
+            if (!data.results || data.results.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding: 10px;">😔 Ничего не найдено</div>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">📹 Результаты поиска:</div>';
+            data.results.forEach(video => {
+                const item = document.createElement('div');
+                item.className = 'search-result';
+                item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;';
+                item.onmouseover = () => item.style.background = '#f5f5f5';
+                item.onmouseout = () => item.style.background = 'white';
+                item.onclick = () => selectVideo(video.embed_url, video.title);
+                item.innerHTML = `
+                    <div style="font-weight: 500;">${video.title}</div>
+                    <div style="font-size: 12px; color: #666;">${video.channel || 'RuTube'}</div>
+                `;
+                resultsDiv.appendChild(item);
+            });
+        })
+        .catch(err => {
+            resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${err}</div>`;
+        });
+    }
+    
+    function selectVideo(embedUrl, title) {
+        document.getElementById('video-source').src = embedUrl;
+        video.load();
+        socket.emit('change_video', { room_id: roomId, video_url: embedUrl });
+        document.getElementById('search-results').style.display = 'none';
+        document.getElementById('search-query').value = '';
+        console.log(`🎬 Выбрано видео: ${title}`);
     }
     
     // ========== ПЕРЕХВАТ СОБЫТИЙ ВСТРОЕННОГО ПЛЕЕРА ==========
@@ -131,11 +195,10 @@
         
         console.log(`🔧 Плавная подстройка: отставание ${absDiff.toFixed(2)}с`);
         
-        const originalRate = video.playbackRate;
         if (diff > 0) {
-            video.playbackRate = Math.min(1.3, originalRate + 0.05);
+            video.playbackRate = Math.min(1.3, video.playbackRate + 0.05);
         } else {
-            video.playbackRate = Math.max(0.7, originalRate - 0.05);
+            video.playbackRate = Math.max(0.7, video.playbackRate - 0.05);
         }
         
         if (video.paused) video.play();
