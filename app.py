@@ -40,26 +40,37 @@ with app.app_context():
 @app.route('/api/search_vk', methods=['POST'])
 @login_required
 def search_vk():
-    # Заглушка с прямыми MP4-ссылками (работают без VPN)
     return jsonify({
         'results': [
             {
-                'title': 'Тестовое видео 1 (MP4)',
-                'embed_url': 'https://www.w3schools.com/html/mov_bbb.mp4',
+                'title': 'Big Buck Bunny (полная версия)',
+                'embed_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
                 'duration': 600,
-                'views': 50000
+                'views': 100000
             },
             {
-                'title': 'Тестовое видео 2 (MP4)',
-                'embed_url': 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4',
-                'duration': 60,
-                'views': 30000
-            },
-            {
-                'title': 'Тестовое видео 3 (MP4)',
+                'title': 'For Bigger Blazes',
                 'embed_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
                 'duration': 120,
-                'views': 20000
+                'views': 80000
+            },
+            {
+                'title': 'For Bigger Funrides',
+                'embed_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFunrides.mp4',
+                'duration': 90,
+                'views': 75000
+            },
+            {
+                'title': 'For Bigger Joyrides',
+                'embed_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+                'duration': 110,
+                'views': 70000
+            },
+            {
+                'title': 'What Car',
+                'embed_url': 'https://storage.googleapis.com/gtv-videos-bucket/sample/WhatCar.mp4',
+                'duration': 60,
+                'views': 60000
             }
         ]
     })
