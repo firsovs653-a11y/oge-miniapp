@@ -8,6 +8,8 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
+from flask import make_response
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -20,7 +22,10 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 socketio = SocketIO(app, cors_allowed_origins="*")
-
+@app.after_request
+def set_referrer_policy(response):
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
 def generate_room_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
