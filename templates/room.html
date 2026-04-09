@@ -20,16 +20,25 @@
     <hr>
     
     <div style="margin-top: 20px;">
-        <h3>🎥 Синхропросмотр</h3>
+        <h3>🎥 Синхропросмотр (YouTube)</h3>
         
+        <!-- Поиск -->
         <div style="margin-bottom: 10px;">
-            <input type="text" id="search-query" placeholder="🔍 Найти видео VK..." style="width: 60%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
-            <button onclick="searchVK()" class="btn" style="width: 35%; background: #28a745;">🔍 Найти</button>
+            <input type="text" id="search-query" placeholder="🔍 Найти видео на YouTube..." style="width: 60%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
+            <button onclick="searchYouTube()" class="btn" style="width: 35%; background: #28a745;">🔍 Найти</button>
         </div>
         <div id="search-results" style="margin-bottom: 10px; display: none; background: white; border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;"></div>
         
-        <div id="vk-player" style="width: 100%; aspect-ratio: 16 / 9;">
-            <iframe id="vk-iframe" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
+        <!-- Ссылка на YouTube (для входа на телефоне) -->
+        <div id="login-hint" style="display: none; text-align: center; margin: 20px; padding: 15px; background: #fff3cd; border-radius: 12px;">
+            <p>⚠️ Для синхронизации на телефоне необходимо войти в Google</p>
+            <a id="youtube-link" href="#" target="_blank" class="btn" style="background: #ff0000; color: white;">🎬 Открыть видео на YouTube</a>
+            <p style="margin-top: 10px; font-size: 12px;">Нажми на ссылку, войди в Google (один раз), затем вернись</p>
+        </div>
+        
+        <!-- YouTube плеер (iframe) -->
+        <div id="youtube-player" style="display: none; width: 100%; aspect-ratio: 16 / 9;">
+            <div id="youtube-container"></div>
         </div>
         
         <div style="margin-top: 10px; display: flex; gap: 10px;">
@@ -40,39 +49,89 @@
 </div>
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
     const socket = io(window.location.origin, { transports: ['websocket'] });
     const roomId = {{ room.id }};
-    const iframe = document.getElementById('vk-iframe');
     
+    let player = null;
     let isLocalAction = false;
+    let currentVideoId = '';
     
     socket.emit('join', { room_id: roomId });
     
-    function playVideo() {
+    // ========== ИНИЦИАЛИЗАЦИЯ YOUTUBE PLAYER ==========
+    window.onYouTubeIframeAPIReady = function() {
+        player = new YT.Player('youtube-container', {
+            height: '100%',
+            width: '100%',
+            videoId: '',
+            playerVars: {
+                'origin': window.location.origin,
+                'modestbranding': 1,
+                'rel': 0,
+                'controls': 1,
+                'fs': 1
+            },
+            events: {
+                'onReady': onPlayerReady,
+                'onStateChange': onPlayerStateChange
+            }
+        });
+    };
+    
+    function onPlayerReady(event) {
+        console.log('YouTube player ready');
+    }
+    
+    function onPlayerStateChange(event) {
         if (isLocalAction) return;
+        
+        if (event.data == YT.PlayerState.PLAYING) {
+            socket.emit('play', { room_id: roomId, current_time: player.getCurrentTime() });
+        }
+        if (event.data == YT.PlayerState.PAUSED) {
+            socket.emit('pause', { room_id: roomId, current_time: player.getCurrentTime() });
+        }
+    }
+    
+    // ========== УПРАВЛЕНИЕ ==========
+    function playVideo() {
+        if (isLocalAction || !player) return;
         isLocalAction = true;
-        // VK iframe не поддерживает JS API, только смена видео
-        alert('Управление видео через плеер VK');
+        player.playVideo();
         setTimeout(() => { isLocalAction = false; }, 200);
     }
     
     function pauseVideo() {
-        if (isLocalAction) return;
+        if (isLocalAction || !player) return;
         isLocalAction = true;
-        alert('Управление видео через плеер VK');
+        player.pauseVideo();
         setTimeout(() => { isLocalAction = false; }, 200);
     }
     
-    window.searchVK = function() {
+    function loadVideo(videoId) {
+        currentVideoId = videoId;
+        if (player && player.loadVideoById) {
+            player.loadVideoById(videoId);
+            document.getElementById('youtube-player').style.display = 'block';
+            document.getElementById('login-hint').style.display = 'none';
+        }
+        // Обновляем ссылку для входа
+        const normalUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        document.getElementById('youtube-link').href = normalUrl;
+    }
+    
+    // ========== ПОИСК ==========
+    window.searchYouTube = function() {
         const query = document.getElementById('search-query').value;
         if (!query.trim()) return;
         
         const resultsDiv = document.getElementById('search-results');
         resultsDiv.style.display = 'block';
-        resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск...</div>';
+        resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск на YouTube...</div>';
         
-        fetch('/api/search_vk', {
+        fetch('/api/search_youtube', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: query })
@@ -83,29 +142,75 @@
                 resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${data.error}</div>`;
                 return;
             }
-            resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">🎬 Результаты:</div>';
+            if (!data.results || data.results.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding: 10px;">😔 Ничего не найдено</div>';
+                return;
+            }
+            resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">🎬 Результаты поиска:</div>';
             data.results.forEach(video => {
                 const item = document.createElement('div');
-                item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;';
-                item.onclick = () => {
-                    iframe.src = video.embed_url;
-                    socket.emit('change_video', { room_id: roomId, video_url: video.embed_url });
-                    resultsDiv.style.display = 'none';
-                };
-                item.innerHTML = `<div style="font-weight: 500;">${video.title}</div>`;
+                item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; gap: 10px; align-items: center;';
+                item.onclick = () => selectVideo(video.video_id, video.title);
+                item.innerHTML = `
+                    <img src="${video.thumbnail}" style="width: 40px; border-radius: 4px;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 500;">${video.title}</div>
+                        <div style="font-size: 12px; color: #666;">${video.channel}</div>
+                    </div>
+                `;
                 resultsDiv.appendChild(item);
             });
         });
     };
     
+    function selectVideo(videoId, title) {
+        loadVideo(videoId);
+        socket.emit('change_video', { room_id: roomId, video_id: videoId });
+        document.getElementById('search-results').style.display = 'none';
+        document.getElementById('search-query').value = '';
+        
+        // Показываем подсказку о входе (на телефоне)
+        if (/iPhone|iPad|Android/i.test(navigator.userAgent)) {
+            document.getElementById('login-hint').style.display = 'block';
+        }
+    }
+    
+    // ========== WEBSOCKET СИНХРОНИЗАЦИЯ ==========
+    socket.on('play_sync', (data) => {
+        if (isLocalAction || !player) return;
+        isLocalAction = true;
+        const diff = Math.abs(player.getCurrentTime() - data.current_time);
+        if (diff > 0.5) {
+            player.seekTo(data.current_time, true);
+        }
+        player.playVideo();
+        setTimeout(() => { isLocalAction = false; }, 300);
+    });
+    
+    socket.on('pause_sync', (data) => {
+        if (isLocalAction || !player) return;
+        isLocalAction = true;
+        player.seekTo(data.current_time, true);
+        player.pauseVideo();
+        setTimeout(() => { isLocalAction = false; }, 200);
+    });
+    
+    socket.on('seek_sync', (data) => {
+        if (isLocalAction || !player) return;
+        isLocalAction = true;
+        player.seekTo(data.current_time, true);
+        setTimeout(() => { isLocalAction = false; }, 200);
+    });
+    
     socket.on('video_change_sync', (data) => {
         if (isLocalAction) return;
         isLocalAction = true;
-        iframe.src = data.video_url;
+        loadVideo(data.video_id);
         setTimeout(() => { isLocalAction = false; }, 500);
     });
     
     socket.on('connect', () => {
+        console.log('✅ WebSocket connected');
         socket.emit('join', { room_id: roomId });
     });
 </script>
