@@ -32,14 +32,20 @@
         
         <!-- Ручной ввод ссылки -->
         <div style="margin-bottom: 10px;">
-            <input type="text" id="video-url" placeholder="Или вставь прямую ссылку на видео (MP4, embed YouTube/RuTube)" style="width: 70%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
+            <input type="text" id="video-url" placeholder="Или вставь ссылку на видео (MP4, embed YouTube/RuTube)" style="width: 70%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
             <button onclick="changeVideo()" class="btn" style="width: 25%;">Загрузить</button>
         </div>
         
-        <video id="video-player" width="100%" controls style="border-radius: 16px; background: black;">
-            <source id="video-source" src="{{ room.video_url or '' }}" type="video/mp4">
+        <!-- Плеер для MP4 -->
+        <video id="video-player" width="100%" controls style="border-radius: 16px; background: black; display: none;">
+            <source id="video-source" src="" type="video/mp4">
             Ваш браузер не поддерживает видео
         </video>
+        
+        <!-- Плеер для RuTube/YouTube (iframe) -->
+        <div id="iframe-player" style="display: none; width: 100%; aspect-ratio: 16 / 9;">
+            <iframe id="iframe-src" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
+        </div>
         
         <div style="margin-top: 10px; display: flex; gap: 10px;">
             <button onclick="playVideo()" class="btn" style="flex: 1;">▶ Play</button>
@@ -63,26 +69,58 @@
     const socket = io(window.location.origin, { transports: ['websocket'] });
     const roomId = {{ room.id }};
     const video = document.getElementById('video-player');
+    const iframePlayer = document.getElementById('iframe-player');
+    const iframe = document.getElementById('iframe-src');
     
     let isLocalAction = false;
     let syncTimeout = null;
+    let currentIsIframe = false;
     
     socket.emit('join', { room_id: roomId });
+    
+    // ========== ОПРЕДЕЛЕНИЕ ТИПА ССЫЛКИ ==========
+    function isIframeUrl(url) {
+        return url && (url.includes('rutube.ru/play/embed/') || url.includes('youtube.com/embed/'));
+    }
+    
+    function loadVideo(url) {
+        if (isIframeUrl(url)) {
+            currentIsIframe = true;
+            video.style.display = 'none';
+            iframePlayer.style.display = 'block';
+            iframe.src = url;
+        } else {
+            currentIsIframe = false;
+            iframePlayer.style.display = 'none';
+            video.style.display = 'block';
+            document.getElementById('video-source').src = url;
+            video.load();
+        }
+    }
     
     // ========== КНОПКИ ИНТЕРФЕЙСА ==========
     function playVideo() {
         if (isLocalAction) return;
         isLocalAction = true;
-        video.play();
-        socket.emit('play', { room_id: roomId, current_time: video.currentTime });
+        if (currentIsIframe) {
+            // Для iframe плеера нет API синхронизации, только уведомление
+            console.log('Play iframe (синхронизация только по времени)');
+        } else {
+            video.play();
+            socket.emit('play', { room_id: roomId, current_time: video.currentTime });
+        }
         setTimeout(() => { isLocalAction = false; }, 200);
     }
     
     function pauseVideo() {
         if (isLocalAction) return;
-        isLocalAction =true;
-        video.pause();
-        socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
+        isLocalAction = true;
+        if (currentIsIframe) {
+            console.log('Pause iframe (синхронизация только по времени)');
+        } else {
+            video.pause();
+            socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
+        }
         setTimeout(() => { isLocalAction = false; }, 200);
     }
     
@@ -90,8 +128,7 @@
         const url = document.getElementById('video-url').value;
         if (url) {
             isLocalAction = true;
-            document.getElementById('video-source').src = url;
-            video.load();
+            loadVideo(url);
             socket.emit('change_video', { room_id: roomId, video_url: url });
             setTimeout(() => { isLocalAction = false; }, 500);
         }
@@ -124,16 +161,16 @@
             }
             
             resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">📹 Результаты поиска:</div>';
-            data.results.forEach(video => {
+            data.results.forEach(videoItem => {
                 const item = document.createElement('div');
                 item.className = 'search-result';
                 item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;';
                 item.onmouseover = () => item.style.background = '#f5f5f5';
                 item.onmouseout = () => item.style.background = 'white';
-                item.onclick = () => selectVideo(video.embed_url, video.title);
+                item.onclick = () => selectVideo(videoItem.embed_url, videoItem.title);
                 item.innerHTML = `
-                    <div style="font-weight: 500;">${video.title}</div>
-                    <div style="font-size: 12px; color: #666;">${video.channel || 'RuTube'}</div>
+                    <div style="font-weight: 500;">${videoItem.title}</div>
+                    <div style="font-size: 12px; color: #666;">${videoItem.channel || 'RuTube'}</div>
                 `;
                 resultsDiv.appendChild(item);
             });
@@ -144,8 +181,7 @@
     }
     
     function selectVideo(embedUrl, title) {
-        document.getElementById('video-source').src = embedUrl;
-        video.load();
+        loadVideo(embedUrl);
         socket.emit('change_video', { room_id: roomId, video_url: embedUrl });
         document.getElementById('search-results').style.display = 'none';
         document.getElementById('search-query').value = '';
@@ -175,7 +211,7 @@
         }
     });
     
-    // ========== ПЛАВНАЯ СИНХРОНИЗАЦИЯ ==========
+    // ========== ПЛАВНАЯ СИНХРОНИЗАЦИЯ (только для video) ==========
     function smoothSync(targetTime) {
         const currentTime = video.currentTime;
         const diff = targetTime - currentTime;
@@ -212,14 +248,14 @@
     
     // ========== WEBSOCKET ПРИЁМ ==========
     socket.on('play_sync', (data) => {
-        if (isLocalAction) return;
+        if (isLocalAction || currentIsIframe) return;
         isLocalAction = true;
         smoothSync(data.current_time);
         setTimeout(() => { isLocalAction = false; }, 300);
     });
     
     socket.on('pause_sync', (data) => {
-        if (isLocalAction) return;
+        if (isLocalAction || currentIsIframe) return;
         isLocalAction = true;
         video.currentTime = data.current_time;
         video.pause();
@@ -227,7 +263,7 @@
     });
     
     socket.on('seek_sync', (data) => {
-        if (isLocalAction) return;
+        if (isLocalAction || currentIsIframe) return;
         isLocalAction = true;
         video.currentTime = data.current_time;
         setTimeout(() => { isLocalAction = false; }, 200);
@@ -236,8 +272,7 @@
     socket.on('video_change_sync', (data) => {
         if (isLocalAction) return;
         isLocalAction = true;
-        document.getElementById('video-source').src = data.video_url;
-        video.load();
+        loadVideo(data.video_url);
         setTimeout(() => { isLocalAction = false; }, 500);
     });
     
