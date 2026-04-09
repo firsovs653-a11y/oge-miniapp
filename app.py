@@ -40,20 +40,26 @@ with app.app_context():
 @app.route('/api/search_vk', methods=['POST'])
 @login_required
 def search_vk():
-    # Заглушка — возвращает тестовые результаты поиска
+    # Заглушка с прямыми MP4-ссылками (работают без VPN)
     return jsonify({
         'results': [
             {
-                'title': 'Матрица (1999) — тестовое видео 1',
-                'embed_url': 'https://vk.com/video_ext.php?oid=-123&id=456',
-                'duration': 8100,
-                'views': 100000
+                'title': 'Тестовое видео 1 (MP4)',
+                'embed_url': 'https://www.w3schools.com/html/mov_bbb.mp4',
+                'duration': 600,
+                'views': 50000
             },
             {
-                'title': 'Матрица: Перезагрузка (2003) — тестовое видео 2',
-                'embed_url': 'https://vk.com/video_ext.php?oid=-789&id=101',
-                'duration': 8100,
-                'views': 85000
+                'title': 'Тестовое видео 2 (MP4)',
+                'embed_url': 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4',
+                'duration': 60,
+                'views': 30000
+            },
+            {
+                'title': 'Тестовое видео 3 (MP4)',
+                'embed_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+                'duration': 120,
+                'views': 20000
             }
         ]
     })
