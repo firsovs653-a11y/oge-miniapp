@@ -3,6 +3,7 @@ import random
 import string
 import os
 import requests
+from bs4 import BeautifulSoup
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_socketio import SocketIO, join_room, leave_room
@@ -35,21 +36,50 @@ def inject_user():
 with app.app_context():
     db.create_all()
 
-# ==================== ПОИСК НА VK (ЗАГЛУШКА) ====================
+# ==================== ПОИСК VK ВИДЕО ====================
 
 @app.route('/api/search_vk', methods=['POST'])
 @login_required
 def search_vk():
-    return jsonify({
-        'results': [
-            {
-                'title': 'Тестовое видео VK',
-                'embed_url': 'https://vk.com/video_ext.php?oid=-123&id=456',
-                'duration': 600,
-                'views': 100000
-            }
-        ]
-    })
+    data = request.get_json()
+    query = data.get('query', '').strip()
+    
+    if not query:
+        return jsonify({'error': 'Empty query'}), 400
+    
+    try:
+        search_url = f"https://vk.com/video?q={query}&section=all"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        response = requests.get(search_url, headers=headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        videos = []
+        for item in soup.select('.video_item'):
+            link = item.get('href', '')
+            if '/video' in link:
+                match = re.search(r'video(-?\d+_\d+)', link)
+                if match:
+                    video_id = match.group(1)
+                    oid, vid = video_id.split('_')
+                    embed_url = f"https://vk.com/video_ext.php?oid={oid}&id={vid}"
+                    title_elem = item.select_one('.video_item_title')
+                    title = title_elem.text.strip() if title_elem else 'Без названия'
+                    videos.append({
+                        'title': title,
+                        'embed_url': embed_url,
+                        'duration': 0,
+                        'views': 0
+                    })
+        if not videos:
+            return jsonify({'error': 'No videos found'}), 404
+        
+        return jsonify({'results': videos[:5]})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 
 @app.route('/')
