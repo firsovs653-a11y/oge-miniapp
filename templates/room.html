@@ -86,25 +86,14 @@
     // ========== ЗАГРУЗКА ВИДЕО С ПРЕДЗАГРУЗКОЙ ==========
     function loadVideo(url) {
     console.log('loadVideo called with URL:', url);
+    // Принудительно используем video-плеер, игнорируем iframe
     currentIsIframe = false;
     iframePlayer.style.display = 'none';
     video.style.display = 'block';
-    
-    // Сбрасываем старый источник
-    video.pause();
-    video.removeAttribute('src');
-    video.load();
-    
-    // Устанавливаем новый источник
     document.getElementById('video-source').src = url;
     video.load();
-    video.preload = 'auto';
-    
-    // Увеличиваем буфер
-    video.addEventListener('canplay', () => {
-        console.log('Video can play, duration:', video.duration);
-        video.play().catch(e => console.error('Play error:', e));
-    });
+    video.play().catch(e => console.log('Play error:', e));
+}
     
     // Проверка загрузки
     let lastBuffered = 0;
