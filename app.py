@@ -10,10 +10,6 @@ from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
 from authlib.integrations.flask_client import OAuth
-import eventlet
-
-# ВАЖНО: Патч для корректной работы с eventlet
-eventlet.monkey_patch()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -29,11 +25,11 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# ВАЖНО: Используем async_mode='eventlet' для Railway
+# Используем threading вместо eventlet для Railway
 socketio = SocketIO(
     app, 
     cors_allowed_origins="*", 
-    async_mode='eventlet',
+    async_mode='threading',
     logger=True,
     engineio_logger=True,
     ping_timeout=60,
@@ -517,6 +513,5 @@ def on_change_video(data):
 
 # ==================== ЗАПУСК ====================
 if __name__ == '__main__':
-    # ВАЖНО: Используем socketio.run с eventlet
     port = int(os.environ.get('PORT', 5000))
-    socketio.run(app, host='0.0.0.0', port=port, debug=False)
+    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
