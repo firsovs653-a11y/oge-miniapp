@@ -10,6 +10,10 @@ from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
 from authlib.integrations.flask_client import OAuth
+import eventlet
+
+# ВАЖНО: Патч для корректной работы с eventlet
+eventlet.monkey_patch()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -25,7 +29,16 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+# ВАЖНО: Используем async_mode='eventlet' для Railway
+socketio = SocketIO(
+    app, 
+    cors_allowed_origins="*", 
+    async_mode='eventlet',
+    logger=True,
+    engineio_logger=True,
+    ping_timeout=60,
+    ping_interval=25
+)
 
 # Инициализация OAuth
 oauth = OAuth(app)
@@ -460,11 +473,19 @@ def leave_room_route(room_id):
     return redirect(url_for('rooms'))
 
 # ==================== WEBSOCKET СИНХРОНИЗАЦИЯ ====================
+@socketio.on('connect')
+def handle_connect():
+    print(f'Client connected: {request.sid}')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f'Client disconnected: {request.sid}')
+
 @socketio.on('join')
 def on_join(data):
     room = str(data['room_id'])
     join_room(room)
-    print(f'Client joined room {room}')
+    print(f'Client {request.sid} joined room {room}')
 
 @socketio.on('play')
 def on_play(data):
@@ -496,4 +517,6 @@ def on_change_video(data):
 
 # ==================== ЗАПУСК ====================
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
+    # ВАЖНО: Используем socketio.run с eventlet
+    port = int(os.environ.get('PORT', 5000))
+    socketio.run(app, host='0.0.0.0', port=port, debug=False)
