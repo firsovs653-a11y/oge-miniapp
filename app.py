@@ -93,23 +93,19 @@ def google_login():
 def google_auth():
     token = google.authorize_access_token()
     
-    # Получаем информацию о пользователе через отдельный запрос
     resp = requests.get(
         'https://www.googleapis.com/oauth2/v3/userinfo',
         headers={'Authorization': f'Bearer {token["access_token"]}'}
     )
     user_info = resp.json()
     
-    # Сохраняем информацию в сессии Flask
     session['google_user'] = user_info
     session['user_email'] = user_info.get('email')
     session['user_name'] = user_info.get('name')
     session['user_avatar'] = user_info.get('picture')
     
-    # Проверяем, есть ли пользователь в БД
     user = User.query.filter_by(email=user_info.get('email')).first()
     if not user:
-        # Создаём нового пользователя
         user = User(
             username=user_info.get('name').replace(' ', '_'),
             email=user_info.get('email'),
@@ -247,17 +243,15 @@ def reject_request(request_id):
 
 # ==================== КОМНАТЫ ====================
 
-GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
-
-@app.route('/room/<int:room_id>')
+@app.route('/rooms')
 @login_required
-def room(room_id):
-    room = Room.query.get_or_404(room_id)
-    if room.is_private and not room.is_member(current_user.id) and room.created_by != current_user.id:
-        flash('Нет доступа')
-        return redirect(url_for('rooms'))
-    members = RoomMember.query.filter_by(room_id=room.id).all()
-    return render_template('room.html', room=room, members=members, google_client_id=GOOGLE_CLIENT_ID)
+def rooms():
+    my_rooms = Room.query.filter(
+        (Room.created_by == current_user.id) |
+        (Room.id.in_(db.session.query(RoomMember.room_id).filter(RoomMember.user_id == current_user.id)))
+    ).all()
+    invites = RoomInvite.query.filter_by(to_user_id=current_user.id, status='pending').all()
+    return render_template('rooms.html', rooms=my_rooms, invites=invites)
 
 @app.route('/room/create', methods=['GET', 'POST'])
 @login_required
@@ -286,7 +280,7 @@ def room(room_id):
         flash('Нет доступа')
         return redirect(url_for('rooms'))
     members = RoomMember.query.filter_by(room_id=room.id).all()
-    return render_template('room.html', room=room, members=members)
+    return render_template('room.html', room=room, members=members, google_client_id=GOOGLE_CLIENT_ID)
 
 @app.route('/room/join', methods=['POST'])
 @login_required
