@@ -3,63 +3,386 @@
 {% block title %}{{ room.name }}{% endblock %}
 
 {% block content %}
-<h1>🎬 {{ room.name }}</h1>
-
-<div class="form-card">
-    <p><strong>Код комнаты:</strong> {{ room.code }}</p>
-    <p><strong>Создатель:</strong> {{ room.creator.username }}</p>
-    <p><strong>Описание:</strong> {{ room.description or 'Нет описания' }}</p>
-    
-    <h3>👥 Участники ({{ members|length }})</h3>
-    <ul id="members-list">
-        {% for member in members %}
-        <li>{{ member.user.username }}</li>
-        {% endfor %}
-    </ul>
-    
-    <hr>
-    
-    <div style="margin-top: 20px;">
-        <h3>🎥 Синхропросмотр</h3>
+<div class="room-container">
+    <!-- Левая колонка - видео -->
+    <div class="video-section">
+        <h1>🎬 {{ room.name }}</h1>
+        
+        <div class="room-info">
+            <span class="room-code">Код: {{ room.code }}</span>
+            <span class="room-creator">Создатель: {{ room.creator.username }}</span>
+        </div>
         
         <!-- Поиск VK -->
-        <div style="margin-bottom: 10px;">
-            <input type="text" id="search-query" placeholder="🔍 Найти видео VK..." style="width: 60%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
-            <button onclick="searchVK()" class="btn" style="width: 35%; background: #4a76a8;">🎬 VK Видео</button>
+        <div class="search-box">
+            <input type="text" id="search-query" placeholder="🔍 Найти видео VK...">
+            <button onclick="searchVK()" class="btn-vk">🎬 VK Видео</button>
         </div>
-        <div id="search-results" style="margin-bottom: 10px; display: none; background: white; border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;"></div>
+        <div id="search-results" class="search-results" style="display: none;"></div>
         
         <!-- Ручной ввод ссылки -->
-        <div style="margin-bottom: 10px;">
-            <input type="text" id="video-url" placeholder="Или вставь прямую ссылку на MP4" style="width: 70%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
-            <button onclick="changeVideo()" class="btn" style="width: 25%;">Загрузить</button>
+        <div class="url-box">
+            <input type="text" id="video-url" placeholder="Или вставь прямую ссылку на MP4">
+            <button onclick="changeVideo()" class="btn-load">Загрузить</button>
         </div>
         
         <!-- Видеоплеер -->
-        <video id="video-player" width="100%" controls style="border-radius: 16px; background: black;">
+        <video id="video-player" controls>
             <source id="video-source" src="" type="video/mp4">
-            Ваш браузер не поддерживает видео
         </video>
         
-        <div style="margin-top: 10px; display: flex; gap: 10px;">
-            <button onclick="playVideo()" class="btn" style="flex: 1;">▶ Play</button>
-            <button onclick="pauseVideo()" class="btn" style="flex: 1;">⏸ Pause</button>
+        <div class="video-controls">
+            <button onclick="playVideo()" class="btn-play">▶ Play</button>
+            <button onclick="pauseVideo()" class="btn-pause">⏸ Pause</button>
+        </div>
+        
+        <div class="members-list">
+            <h3>👥 Участники ({{ members|length }})</h3>
+            <div class="members-grid">
+                {% for member in members %}
+                <span class="member-tag">{{ member.user.username }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Правая колонка - чат -->
+    <div class="chat-section">
+        <div class="chat-header">
+            <h3>💬 Чат комнаты</h3>
+        </div>
+        
+        <div id="chat-messages" class="chat-messages">
+            <!-- Сообщения будут здесь -->
+        </div>
+        
+        <div class="chat-input">
+            <input type="text" id="message-input" placeholder="Напишите сообщение..." maxlength="500">
+            <button onclick="sendMessage()" class="btn-send">➤</button>
         </div>
     </div>
 </div>
+
+<style>
+    /* Стили в стиле Кинопоиска */
+    .room-container {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 20px;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+    
+    .video-section {
+        background: #1a1a1a;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    
+    .video-section h1 {
+        color: #fff;
+        margin: 0 0 15px 0;
+        font-size: 24px;
+        text-shadow: none;
+    }
+    
+    .room-info {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+        color: #aaa;
+        font-size: 14px;
+    }
+    
+    .room-code {
+        background: #333;
+        padding: 4px 12px;
+        border-radius: 20px;
+    }
+    
+    .search-box, .url-box {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .search-box input, .url-box input {
+        flex: 1;
+        padding: 12px 16px;
+        background: #2a2a2a;
+        border: 1px solid #444;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 14px;
+    }
+    
+    .search-box input::placeholder, .url-box input::placeholder {
+        color: #888;
+    }
+    
+    .btn-vk {
+        background: #0077ff;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    
+    .btn-load {
+        background: #f5c518;
+        color: #000;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    
+    #video-player {
+        width: 100%;
+        border-radius: 12px;
+        background: #000;
+        margin: 20px 0;
+    }
+    
+    .video-controls {
+        display: flex;
+        gap: 10px;
+        margin: 15px 0;
+    }
+    
+    .btn-play, .btn-pause {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #333;
+        color: #fff;
+    }
+    
+    .btn-play:hover {
+        background: #f5c518;
+        color: #000;
+    }
+    
+    .btn-pause:hover {
+        background: #f5c518;
+        color: #000;
+    }
+    
+    .members-list {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #333;
+    }
+    
+    .members-list h3 {
+        color: #fff;
+        margin: 0 0 15px 0;
+        font-size: 16px;
+    }
+    
+    .members-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .member-tag {
+        background: #333;
+        color: #fff;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+    }
+    
+    /* Стили чата */
+    .chat-section {
+        background: #1a1a1a;
+        border-radius: 16px;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 100px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    
+    .chat-header {
+        padding: 20px;
+        border-bottom: 1px solid #333;
+    }
+    
+    .chat-header h3 {
+        color: #fff;
+        margin: 0;
+        font-size: 18px;
+    }
+    
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .chat-message {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .message-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .message-username {
+        color: #f5c518;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .message-time {
+        color: #666;
+        font-size: 12px;
+    }
+    
+    .message-text {
+        color: #fff;
+        font-size: 14px;
+        line-height: 1.4;
+        word-break: break-word;
+        background: #2a2a2a;
+        padding: 8px 12px;
+        border-radius: 12px;
+        display: inline-block;
+        max-width: 80%;
+    }
+    
+    .chat-message.own .message-text {
+        background: #f5c518;
+        color: #000;
+        align-self: flex-end;
+    }
+    
+    .chat-message.own .message-header {
+        justify-content: flex-end;
+    }
+    
+    .chat-input {
+        padding: 20px;
+        border-top: 1px solid #333;
+        display: flex;
+        gap: 10px;
+    }
+    
+    .chat-input input {
+        flex: 1;
+        padding: 12px 16px;
+        background: #2a2a2a;
+        border: 1px solid #444;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 14px;
+    }
+    
+    .chat-input input::placeholder {
+        color: #888;
+    }
+    
+    .btn-send {
+        background: #f5c518;
+        color: #000;
+        border: none;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .search-results {
+        background: #2a2a2a;
+        border-radius: 12px;
+        padding: 10px;
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 10px;
+    }
+    
+    /* Адаптивность */
+    @media (max-width: 768px) {
+        .room-container {
+            grid-template-columns: 1fr;
+        }
+        
+        .chat-section {
+            height: 400px;
+        }
+    }
+</style>
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
     const socket = io(window.location.origin, { transports: ['websocket'] });
     const roomId = {{ room.id }};
     const video = document.getElementById('video-player');
+    const currentUsername = '{{ current_user.username }}';
     
     let isRemoteAction = false;
     let remoteActionTimer = null;
     
     socket.emit('join', { room_id: roomId });
     
-    // ========== УПРАВЛЕНИЕ ==========
+    // ========== ЧАТ ==========
+    function sendMessage() {
+        const input = document.getElementById('message-input');
+        const message = input.value.trim();
+        
+        if (message) {
+            socket.emit('send_message', { room_id: roomId, message: message });
+            input.value = '';
+        }
+    }
+    
+    document.getElementById('message-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+    
+    socket.on('new_message', (data) => {
+        const messagesDiv = document.getElementById('chat-messages');
+        const messageEl = document.createElement('div');
+        messageEl.className = 'chat-message' + (data.username === currentUsername ? ' own' : '');
+        
+        messageEl.innerHTML = `
+            <div class="message-header">
+                <span class="message-username">${data.username}</span>
+                <span class="message-time">${data.timestamp}</span>
+            </div>
+            <div class="message-text">${escapeHtml(data.message)}</div>
+        `;
+        
+        messagesDiv.appendChild(messageEl);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // ========== УПРАВЛЕНИЕ ВИДЕО ==========
     function playVideo() {
         video.play();
         socket.emit('play', { room_id: roomId, current_time: video.currentTime });
@@ -162,7 +485,7 @@
         
         const resultsDiv = document.getElementById('search-results');
         resultsDiv.style.display = 'block';
-        resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск VK...</div>';
+        resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #fff;">⏳ Поиск VK...</div>';
         
         fetch('/api/search_vk', {
             method: 'POST',
@@ -172,17 +495,17 @@
         .then(res => res.json())
         .then(data => {
             if (data.error) {
-                resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${data.error}</div>`;
+                resultsDiv.innerHTML = `<div style="color: #ff4444; padding: 10px;">❌ Ошибка: ${data.error}</div>`;
                 return;
             }
             if (!data.results || data.results.length === 0) {
-                resultsDiv.innerHTML = '<div style="padding: 10px;">😔 Ничего не найдено</div>';
+                resultsDiv.innerHTML = '<div style="padding: 10px; color: #fff;">😔 Ничего не найдено</div>';
                 return;
             }
-            resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">🎬 Результаты VK:</div>';
+            resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px; color: #f5c518;">🎬 Результаты VK:</div>';
             data.results.forEach(videoItem => {
                 const item = document.createElement('div');
-                item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;';
+                item.style.cssText = 'padding: 10px; border-bottom: 1px solid #444; cursor: pointer; color: #fff;';
                 item.onclick = () => {
                     isRemoteAction = true;
                     video.src = videoItem.video_url;
