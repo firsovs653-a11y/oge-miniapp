@@ -30,6 +30,8 @@ VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 
 @app.route('/api/search_vk', methods=['POST'])
 @login_required
+@app.route('/api/search_vk', methods=['POST'])
+@login_required
 def search_vk():
     data = request.get_json()
     query = data.get('query', '').strip()
@@ -37,57 +39,23 @@ def search_vk():
     if not query:
         return jsonify({'error': 'Empty query'}), 400
     
-    if not VK_ACCESS_TOKEN:
-        return jsonify({'error': 'VK token not configured'}), 500
-    
-    try:
-        # Поиск видео
-        search_url = "https://api.vk.com/method/video.search"
-        params = {
-            'q': query,
-            'access_token': VK_ACCESS_TOKEN,
-            'count': 10,
-            'sort': 2,
-            'hd': 1,
-            'adult': 1,
-            'v': '5.131'
-        }
-        response = requests.get(search_url, params=params)
-        data = response.json()
-        
-        if 'error' in data:
-            return jsonify({'error': data['error']['error_msg']}), 500
-        
-        videos = []
-        for item in data.get('response', {}).get('items', []):
-            owner_id = item['owner_id']
-            video_id = item['id']
-            
-            # Получаем прямую MP4 ссылку
-            video_url = f"https://api.vk.com/method/video.get"
-            video_params = {
-                'videos': f"{owner_id}_{video_id}",
-                'access_token': VK_ACCESS_TOKEN,
-                'v': '5.131'
+    # Заглушка — возвращает тестовые видео
+    return jsonify({
+        'results': [
+            {
+                'title': f'Тестовое видео по запросу "{query}"',
+                'video_url': 'https://www.w3schools.com/html/mov_bbb.mp4',
+                'duration': 600,
+                'views': 1000
+            },
+            {
+                'title': 'Big Buck Bunny (тестовое видео)',
+                'video_url': 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4',
+                'duration': 60,
+                'views': 5000
             }
-            video_response = requests.get(video_url, params=video_params)
-            video_data = video_response.json()
-            
-            files = video_data.get('response', {}).get('items', [{}])[0].get('files', {})
-            mp4_url = files.get('mp4_720') or files.get('mp4_480') or files.get('mp4_360') or files.get('mp4_240')
-            
-            if mp4_url:
-                videos.append({
-                    'title': item['title'],
-                    'video_url': mp4_url,
-                    'duration': item.get('duration', 0),
-                    'views': item.get('views', 0)
-                })
-        
-        return jsonify({'results': videos})
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        ]
+    })
 
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 
