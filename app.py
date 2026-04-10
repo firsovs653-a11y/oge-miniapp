@@ -307,7 +307,7 @@ def on_play(data):
 @socketio.on('pause')
 def on_pause(data):
     room = str(data['room_id'])
-    time = data['current_time}')
+    time = data['current_time}']
     print(f'Pause in room {room} at {time}')
     emit('pause_sync', {'current_time': time}, room=room, include_self=False)
 
