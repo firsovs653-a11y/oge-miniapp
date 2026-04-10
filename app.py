@@ -90,7 +90,6 @@ def google_login():
 
 @app.route('/google_auth')
 def google_auth():
-    # Проверяем state
     saved_state = session.pop('oauth_state', None)
     request_state = request.args.get('state')
     
@@ -103,7 +102,6 @@ def google_auth():
         flash('Ошибка: не получен код авторизации')
         return redirect(url_for('index'))
     
-    # Обмен code на access_token
     token_url = 'https://oauth2.googleapis.com/token'
     data = {
         'code': code,
@@ -121,14 +119,12 @@ def google_auth():
             flash('Ошибка: не удалось получить access_token')
             return redirect(url_for('index'))
         
-        # Получаем информацию о пользователе
         userinfo_resp = requests.get(
             'https://www.googleapis.com/oauth2/v3/userinfo',
             headers={'Authorization': f'Bearer {token_data["access_token"]}'}
         )
         user_info = userinfo_resp.json()
         
-        # Безопасное получение имени
         user_name = user_info.get('name')
         if not user_name:
             email = user_info.get('email', '')
@@ -159,6 +155,23 @@ def google_auth():
         return redirect(url_for('index'))
     
     return redirect(url_for('index'))
+
+@app.route('/oauth2callback')
+def oauth2callback():
+    # Этот эндпоинт для завершения OAuth потока YouTube
+    return '''
+    <html>
+    <body>
+    <script>
+        if (window.opener) {
+            window.opener.postMessage({type: 'auth_success'}, window.location.origin);
+        }
+        window.close();
+    </script>
+    <p>Авторизация завершена. Окно можно закрыть.</p>
+    </body>
+    </html>
+    '''
 
 @app.route('/google_logout')
 def google_logout():
