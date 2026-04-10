@@ -92,17 +92,35 @@ def google_login():
 
 @app.route('/google_auth')
 def google_auth():
-    try:
-        token = google.authorize_access_token(verify=False)
-    except Exception as e:
-        flash(f'Ошибка авторизации: {str(e)}')
+    # Получаем code из запроса
+    code = request.args.get('code')
+    if not code:
+        flash('Ошибка: не получен код авторизации')
         return redirect(url_for('index'))
     
-    resp = requests.get(
+    # Меняем code на access_token вручную
+    token_url = 'https://oauth2.googleapis.com/token'
+    data = {
+        'code': code,
+        'client_id': GOOGLE_CLIENT_ID,
+        'client_secret': GOOGLE_CLIENT_SECRET,
+        'redirect_uri': 'https://oge-miniapp-production.up.railway.app/google_auth',
+        'grant_type': 'authorization_code'
+    }
+    
+    resp = requests.post(token_url, data=data)
+    token_data = resp.json()
+    
+    if 'access_token' not in token_data:
+        flash('Ошибка: не удалось получить access_token')
+        return redirect(url_for('index'))
+    
+    # Получаем информацию о пользователе
+    userinfo_resp = requests.get(
         'https://www.googleapis.com/oauth2/v3/userinfo',
-        headers={'Authorization': f'Bearer {token["access_token"]}'}
+        headers={'Authorization': f'Bearer {token_data["access_token"]}'}
     )
-    user_info = resp.json()
+    user_info = userinfo_resp.json()
     
     session['google_user'] = user_info
     session['user_email'] = user_info.get('email')
