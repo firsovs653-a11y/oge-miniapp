@@ -87,14 +87,16 @@ def search_youtube():
 
 @app.route('/google_login')
 def google_login():
-    state = secrets.token_urlsafe(32)
-    session['oauth_state'] = state
     redirect_uri = 'https://oge-miniapp-production.up.railway.app/google_auth'
-    return google.authorize_redirect(redirect_uri, state=state)
+    return google.authorize_redirect(redirect_uri)
 
 @app.route('/google_auth')
 def google_auth():
-    token = google.authorize_access_token(verify=False)
+    try:
+        token = google.authorize_access_token(verify=False)
+    except Exception as e:
+        flash(f'Ошибка авторизации: {str(e)}')
+        return redirect(url_for('index'))
     
     resp = requests.get(
         'https://www.googleapis.com/oauth2/v3/userinfo',
