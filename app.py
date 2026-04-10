@@ -92,7 +92,13 @@ def google_login():
 @app.route('/google_auth')
 def google_auth():
     token = google.authorize_access_token()
-    user_info = google.parse_id_token(token)
+    
+    # Получаем информацию о пользователе через отдельный запрос
+    resp = requests.get(
+        'https://www.googleapis.com/oauth2/v3/userinfo',
+        headers={'Authorization': f'Bearer {token["access_token"]}'}
+    )
+    user_info = resp.json()
     
     # Сохраняем информацию в сессии Flask
     session['google_user'] = user_info
