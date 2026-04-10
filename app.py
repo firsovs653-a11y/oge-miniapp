@@ -94,15 +94,7 @@ def google_login():
 
 @app.route('/google_auth')
 def google_auth():
-    # Проверяем state
-    saved_state = session.pop('oauth_state', None)
-    request_state = request.args.get('state')
-    
-    if saved_state != request_state:
-        flash('Ошибка авторизации: некорректный state')
-        return redirect(url_for('index'))
-    
-    token = google.authorize_access_token()
+    token = google.authorize_access_token(verify=False)
     
     resp = requests.get(
         'https://www.googleapis.com/oauth2/v3/userinfo',
