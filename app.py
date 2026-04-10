@@ -9,7 +9,26 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
+# Добавить в WebSocket часть:
 
+@socketio.on('send_message')
+def on_send_message(data):
+    room = str(data['room_id'])
+    user_id = current_user.id
+    message = data['message'][:500]  # Ограничение длины
+    
+    # Сохраняем в БД
+    from models import ChatMessage
+    msg = ChatMessage(room_id=int(room), user_id=user_id, message=message)
+    db.session.add(msg)
+    db.session.commit()
+    
+    # Отправляем всем в комнате
+    emit('new_message', {
+        'username': current_user.username,
+        'message': message,
+        'timestamp': msg.created_at.strftime('%H:%M')
+    }, room=room)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///kinobase.db')
