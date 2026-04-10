@@ -39,19 +39,13 @@
             <button onclick="pauseVideo()" class="btn" style="flex: 1;">⏸ Pause</button>
         </div>
         
-        <p style="font-size: 12px; color: #999; margin-top: 10px;">
-            💡 Если видео не воспроизводится, нажмите "Войти в Google" в появившемся окне
-        </p>
-    </div>
-</div>
-
-<!-- Модальное окно авторизации -->
-<div id="auth-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
-    <div style="background: white; padding: 30px; border-radius: 20px; text-align: center; max-width: 400px;">
-        <h3>🔐 Требуется авторизация</h3>
-        <p>Для просмотра этого видео необходимо войти в Google</p>
-        <button onclick="loginToYouTube()" class="btn" style="background: #4285f4; margin: 10px;">Войти в Google</button>
-        <button onclick="closeAuthModal()" class="btn" style="background: #6c757d;">Отмена</button>
+        <!-- Кнопка входа в Google -->
+        <div style="margin-top: 20px; text-align: center;">
+            <button onclick="loginToYouTube()" class="btn" style="background: #4285f4;">🔐 Войти в Google</button>
+            <p style="font-size: 12px; color: #999; margin-top: 5px;">
+                Нужно для некоторых видео (возрастные ограничения)
+            </p>
+        </div>
     </div>
 </div>
 
@@ -65,7 +59,6 @@
     let isLocalAction = false;
     let currentVideoId = '';
     
-    // GOOGLE_CLIENT_ID из переменной окружения
     const GOOGLE_CLIENT_ID = '{{ google_client_id }}';
     
     socket.emit('join', { room_id: roomId });
@@ -99,7 +92,7 @@
     function onPlayerError(event) {
         console.error('YouTube player error:', event.data);
         if (event.data === 150 || event.data === 101 || event.data === 151) {
-            showAuthModal();
+            alert('Для просмотра этого видео необходимо войти в Google. Нажмите "Войти в Google" ниже.');
         }
     }
     
@@ -114,29 +107,9 @@
         }
     }
     
-    // ========== АВТОРИЗАЦИЯ ==========
-    function showAuthModal() {
-        const modal = document.getElementById('auth-modal');
-        if (modal) modal.style.display = 'flex';
-    }
-    
-    function closeAuthModal() {
-        const modal = document.getElementById('auth-modal');
-        if (modal) modal.style.display = 'none';
-    }
-    
+    // ========== ВХОД В GOOGLE ==========
     function loginToYouTube() {
-        const redirectUri = window.location.origin + '/google_auth';
-        const authUrl = 'https://accounts.google.com/o/oauth2/auth' +
-            '?client_id=' + GOOGLE_CLIENT_ID +
-            '&redirect_uri=' + encodeURIComponent(redirectUri) +
-            '&response_type=code' +
-            '&scope=email profile https://www.googleapis.com/auth/youtube.readonly' +
-            '&access_type=online';
-        
-        window.open(authUrl, '_blank');
-        alert('Войдите в Google в новой вкладке, закройте её и обновите страницу');
-        closeAuthModal();
+        window.location.href = '/google_login';
     }
     
     // ========== УПРАВЛЕНИЕ ==========
@@ -152,7 +125,6 @@
         if (isLocalAction || !player) return;
         isLocalAction = true;
         const currentTime = player.getCurrentTime();
-        // Сначала отправляем событие, потом ставим на паузу
         socket.emit('pause', { room_id: roomId, current_time: currentTime });
         player.pauseVideo();
         setTimeout(() => { isLocalAction = false; }, 200);
@@ -220,7 +192,6 @@
     });
     
     socket.on('pause_sync', (data) => {
-        console.log('📥 pause_sync received', data);
         if (!player) return;
         player.seekTo(data.current_time, true);
         player.pauseVideo();
