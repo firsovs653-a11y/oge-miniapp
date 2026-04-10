@@ -132,7 +132,7 @@
             '?client_id=' + GOOGLE_CLIENT_ID +
             '&redirect_uri=' + encodeURIComponent(redirectUri) +
             '&response_type=code' +
-            '&scope=https://www.googleapis.com/auth/youtube.readonly' +
+            '&scope=email profile https://www.googleapis.com/auth/youtube.readonly' +
             '&access_type=online';
         
         const authWindow = window.open(authUrl, 'google-auth', 'width=500,height=600');
