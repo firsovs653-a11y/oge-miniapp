@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Кинопоиск Синхро{% endblock %}</title>
+    <title>{% block title %}FIRSOV{% endblock %}</title>
     <style>
         * {
             margin: 0;
@@ -23,7 +23,6 @@
             padding: 20px;
         }
         
-        /* Навигация в стиле Кинопоиска */
         .nav {
             background: #1a1a1a;
             padding: 0 20px;
@@ -74,7 +73,6 @@
             margin-right: 15px;
         }
         
-        /* Кнопки */
         .btn {
             background: #f5c518;
             color: #000;
@@ -103,7 +101,6 @@
             background: rgba(245, 197, 24, 0.1);
         }
         
-        /* Карточки */
         .card {
             background: #1a1a1a;
             border-radius: 12px;
@@ -150,7 +147,6 @@
             font-weight: 500;
         }
         
-        /* Ссылки */
         a {
             color: #f5c518;
             text-decoration: none;
@@ -163,7 +159,7 @@
 </head>
 <body>
     <div class="nav">
-        <div class="nav-logo">КИНОПОИСК СИНХРО</div>
+        <div class="nav-logo">FIRSOV</div>
         <div class="nav-links">
             {% if current_user.is_authenticated %}
                 <a href="{{ url_for('rooms') }}">🎬 Комнаты</a>
