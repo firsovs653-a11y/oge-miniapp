@@ -29,9 +29,9 @@
         </div>
         <div id="search-results" style="margin-bottom: 10px; display: none; background: white; border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;"></div>
         
-        <!-- YouTube плеер -->
-        <div id="youtube-player" style="width: 100%; aspect-ratio: 16 / 9;">
-            <div id="youtube-container"></div>
+        <!-- Invidious плеер -->
+        <div id="invidious-player" style="width: 100%; aspect-ratio: 16 / 9;">
+            <iframe id="video-iframe" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
         </div>
         
         <div style="margin-top: 10px; display: flex; gap: 10px;">
@@ -42,86 +42,38 @@
 </div>
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-<script src="https://www.youtube.com/iframe_api"></script>
 <script>
     const socket = io(window.location.origin, { transports: ['websocket'] });
     const roomId = {{ room.id }};
     
-    let player = null;
     let isLocalAction = false;
     let currentVideoId = '';
-    let accessToken = null;
-    
-    const GOOGLE_CLIENT_ID = '{{ google_client_id }}';
+    let isPlaying = false;
     
     socket.emit('join', { room_id: roomId });
     
-    // ========== ИНИЦИАЛИЗАЦИЯ YOUTUBE PLAYER ==========
-    window.onYouTubeIframeAPIReady = function() {
-        player = new YT.Player('youtube-container', {
-            height: '100%',
-            width: '100%',
-            videoId: currentVideoId,
-            playerVars: {
-                'origin': window.location.origin,
-                'enablejsapi': 1,
-                'modestbranding': 1,
-                'rel': 0,
-                'controls': 1,
-                'fs': 1,
-                'authuser': '0'
-            },
-            events: {
-                'onReady': onPlayerReady,
-                'onStateChange': onPlayerStateChange,
-                'onError': onPlayerError
-            }
-        });
-    };
-    
-    function onPlayerReady(event) {
-        console.log('YouTube player ready');
-    }
-    
-    function onPlayerError(event) {
-        console.error('YouTube player error:', event.data);
-        // Просто логируем ошибку, не вызываем авторизацию
-    }
-    
-    function onPlayerStateChange(event) {
-        if (isLocalAction) return;
-        
-        if (event.data == YT.PlayerState.PLAYING) {
-            socket.emit('play', { room_id: roomId, current_time: player.getCurrentTime() });
-        }
-        if (event.data == YT.PlayerState.PAUSED) {
-            socket.emit('pause', { room_id: roomId, current_time: player.getCurrentTime() });
-        }
-    }
+    const iframe = document.getElementById('video-iframe');
     
     // ========== УПРАВЛЕНИЕ ==========
     function playVideo() {
-        if (isLocalAction || !player) return;
+        if (isLocalAction) return;
         isLocalAction = true;
-        player.playVideo();
-        socket.emit('play', { room_id: roomId, current_time: player.getCurrentTime() });
+        // Отправляем событие play
+        socket.emit('play', { room_id: roomId, current_time: Date.now() / 1000 });
         setTimeout(() => { isLocalAction = false; }, 200);
     }
     
     function pauseVideo() {
-        if (isLocalAction || !player) return;
+        if (isLocalAction) return;
         isLocalAction = true;
-        const currentTime = player.getCurrentTime();
-        socket.emit('pause', { room_id: roomId, current_time: currentTime });
-        player.pauseVideo();
+        socket.emit('pause', { room_id: roomId, current_time: Date.now() / 1000 });
         setTimeout(() => { isLocalAction = false; }, 200);
     }
     
     function loadVideo(videoId) {
         currentVideoId = videoId;
-        if (player && player.loadVideoById) {
-            player.loadVideoById(videoId);
-        }
+        const invidiousUrl = `https://invidious.fdn.fr/embed/${videoId}?autoplay=0&controls=1`;
+        iframe.src = invidiousUrl;
     }
     
     // ========== ПОИСК ==========
@@ -168,26 +120,17 @@
     
     // ========== WEBSOCKET СИНХРОНИЗАЦИЯ ==========
     socket.on('play_sync', (data) => {
-        if (isLocalAction || !player) return;
+        if (isLocalAction) return;
         isLocalAction = true;
-        const diff = Math.abs(player.getCurrentTime() - data.current_time);
-        if (diff > 0.5) {
-            player.seekTo(data.current_time, true);
-        }
-        player.playVideo();
+        // Для iframe нет API управления, только синхронизация времени
+        console.log('Play event received');
         setTimeout(() => { isLocalAction = false; }, 300);
     });
     
     socket.on('pause_sync', (data) => {
-        if (!player) return;
-        player.seekTo(data.current_time, true);
-        player.pauseVideo();
-    });
-    
-    socket.on('seek_sync', (data) => {
-        if (isLocalAction || !player) return;
+        if (isLocalAction) return;
         isLocalAction = true;
-        player.seekTo(data.current_time, true);
+        console.log('Pause event received');
         setTimeout(() => { isLocalAction = false; }, 200);
     });
     
