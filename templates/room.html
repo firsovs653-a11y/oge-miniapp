@@ -76,6 +76,7 @@
             videoId: currentVideoId,
             playerVars: {
                 'origin': window.location.origin,
+                'enablejsapi': 1,
                 'modestbranding': 1,
                 'rel': 0,
                 'controls': 1,
@@ -83,13 +84,26 @@
             },
             events: {
                 'onReady': onPlayerReady,
-                'onStateChange': onPlayerStateChange
+                'onStateChange': onPlayerStateChange,
+                'onError': onPlayerError
             }
         });
     };
     
     function onPlayerReady(event) {
         console.log('YouTube player ready');
+        // Автоматически пытаемся авторизоваться
+        if (player && player.getVideoUrl) {
+            console.log('Video URL:', player.getVideoUrl());
+        }
+    }
+    
+    function onPlayerError(event) {
+        console.error('YouTube player error:', event.data);
+        if (event.data === 150 || event.data === 101) {
+            // Ошибка авторизации
+            showAuthModal();
+        }
     }
     
     function onPlayerStateChange(event) {
@@ -101,6 +115,40 @@
         if (event.data == YT.PlayerState.PAUSED) {
             socket.emit('pause', { room_id: roomId, current_time: player.getCurrentTime() });
         }
+    }
+    
+    // ========== АВТОРИЗАЦИЯ ==========
+    function showAuthModal() {
+        const modal = document.getElementById('auth-modal');
+        if (modal) modal.style.display = 'flex';
+    }
+    
+    function closeAuthModal() {
+        const modal = document.getElementById('auth-modal');
+        if (modal) modal.style.display = 'none';
+    }
+    
+    function loginToYouTube() {
+        // Открываем окно авторизации Google
+        const authWindow = window.open(
+            'https://accounts.google.com/o/oauth2/auth?client_id=' + GOOGLE_CLIENT_ID +
+            '&redirect_uri=' + encodeURIComponent(window.location.origin + '/google_auth') +
+            '&response_type=code&scope=https://www.googleapis.com/auth/youtube.readonly&access_type=online',
+            'google-auth',
+            'width=500,height=600'
+        );
+        
+        // Следим за закрытием окна
+        const checkInterval = setInterval(() => {
+            if (authWindow.closed) {
+                clearInterval(checkInterval);
+                // Перезагружаем плеер
+                if (currentVideoId) {
+                    player.loadVideoById(currentVideoId);
+                }
+                closeAuthModal();
+            }
+        }, 500);
     }
     
     // ========== УПРАВЛЕНИЕ ==========
@@ -125,28 +173,15 @@
         }
         // Обновляем ссылку для входа
         const normalUrl = `https://www.youtube.com/watch?v=${videoId}`;
-        document.getElementById('youtube-link').href = normalUrl;
+        const authLink = document.getElementById('youtube-auth-link');
+        if (authLink) authLink.href = normalUrl;
     }
     
     function reloadPlayer() {
-        const videoId = currentVideoId;
-        if (!videoId) {
-            location.reload();
-            return;
+        if (currentVideoId) {
+            player.loadVideoById(currentVideoId);
+            closeAuthModal();
         }
-        
-        // Пробуем перезагрузить iframe
-        const iframe = document.querySelector('#youtube-container iframe');
-        if (iframe) {
-            const currentSrc = iframe.src;
-            const baseUrl = currentSrc.split('?')[0];
-            iframe.src = baseUrl + `?autoplay=1&origin=${window.location.origin}&enablejsapi=1&videoId=${videoId}`;
-        } else {
-            // Если iframe не найден, пересоздаём плеер
-            player.loadVideoById(videoId);
-        }
-        
-        document.getElementById('login-hint').style.display = 'none';
     }
     
     // ========== ПОИСК ==========
@@ -189,11 +224,6 @@
         socket.emit('change_video', { room_id: roomId, video_id: videoId });
         document.getElementById('search-results').style.display = 'none';
         document.getElementById('search-query').value = '';
-        
-        // Показываем подсказку только на телефоне
-        if (isMobile) {
-            document.getElementById('login-hint').style.display = 'block';
-        }
     }
     
     // ========== WEBSOCKET СИНХРОНИЗАЦИЯ ==========
@@ -234,5 +264,8 @@
         console.log('✅ WebSocket connected');
         socket.emit('join', { room_id: roomId });
     });
+    
+    // Передаём GOOGLE_CLIENT_ID в JavaScript
+    const GOOGLE_CLIENT_ID = '{{ google_client_id }}';
 </script>
 {% endblock %}
