@@ -1,51 +1,3 @@
-{% extends "base.html" %}
-
-{% block title %}{{ room.name }}{% endblock %}
-
-{% block content %}
-<h1>🎬 {{ room.name }}</h1>
-
-<div class="form-card">
-    <p><strong>Код комнаты:</strong> {{ room.code }}</p>
-    <p><strong>Создатель:</strong> {{ room.creator.username }}</p>
-    <p><strong>Описание:</strong> {{ room.description or 'Нет описания' }}</p>
-    
-    <h3>👥 Участники ({{ members|length }})</h3>
-    <ul id="members-list">
-        {% for member in members %}
-        <li>{{ member.user.username }}</li>
-        {% endfor %}
-    </ul>
-    
-    <hr>
-    
-    <div style="margin-top: 20px;">
-        <h3>🎥 Синхропросмотр</h3>
-        
-        <!-- Поиск -->
-        <div style="margin-bottom: 10px;">
-            <input type="text" id="search-query" placeholder="🔍 Найти видео..." style="width: 60%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
-            <button onclick="searchYouTube()" class="btn" style="width: 35%; background: #28a745;">🔍 YouTube</button>
-            <button onclick="searchVK()" class="btn" style="width: 35%; background: #4a76a8;">🎬 VK Видео</button>
-        </div>
-        <div id="search-results" style="margin-bottom: 10px; display: none; background: white; border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;"></div>
-        
-        <!-- Видеоплеер -->
-        <div id="player-container" style="width: 100%; aspect-ratio: 16 / 9;">
-            <video id="video-player" width="100%" controls style="border-radius: 16px; background: black;">
-                <source id="video-source" src="" type="video/mp4">
-                Ваш браузер не поддерживает видео
-            </video>
-        </div>
-        
-        <div style="margin-top: 10px; display: flex; gap: 10px;">
-            <button onclick="playVideo()" class="btn" style="flex: 1;">▶ Play</button>
-            <button onclick="pauseVideo()" class="btn" style="flex: 1;">⏸ Pause</button>
-        </div>
-    </div>
-</div>
-
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
     const socket = io(window.location.origin, { transports: ['websocket'] });
     const roomId = {{ room.id }};
@@ -57,7 +9,6 @@
     
     socket.emit('join', { room_id: roomId });
     
-    // ========== ЗАГРУЗКА ВИДЕО ==========
     function loadVideo(url) {
         currentVideoUrl = url;
         video.src = url;
@@ -65,7 +16,6 @@
         video.play().catch(e => console.log('Play error:', e));
     }
     
-    // ========== УПРАВЛЕНИЕ ==========
     function playVideo() {
         if (isLocalAction) return;
         isLocalAction = true;
@@ -82,7 +32,6 @@
         setTimeout(() => { isLocalAction = false; }, 200);
     }
     
-    // ========== ПОИСК YOUTUBE ==========
     window.searchYouTube = function() {
         const query = document.getElementById('search-query').value;
         if (!query.trim()) return;
@@ -122,7 +71,6 @@
         });
     };
     
-    // ========== ПОИСК VK ==========
     window.searchVK = function() {
         const query = document.getElementById('search-query').value;
         if (!query.trim()) return;
@@ -158,10 +106,12 @@
                 item.innerHTML = `<div style="font-weight: 500;">${video.title}</div>`;
                 resultsDiv.appendChild(item);
             });
+        })
+        .catch(err => {
+            resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${err}</div>`;
         });
     };
     
-    // ========== WEBSOCKET СИНХРОНИЗАЦИЯ ==========
     socket.on('play_sync', (data) => {
         if (isLocalAction) return;
         isLocalAction = true;
@@ -199,45 +149,4 @@
         console.log('✅ WebSocket connected');
         socket.emit('join', { room_id: roomId });
     });
-    window.searchVK = function() {
-    const query = document.getElementById('search-query').value;
-    if (!query.trim()) return;
-    
-    const resultsDiv = document.getElementById('search-results');
-    resultsDiv.style.display = 'block';
-    resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск VK...</div>';
-    
-    fetch('/api/search_vk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.error) {
-            resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${data.error}</div>`;
-            return;
-        }
-        if (!data.results || data.results.length === 0) {
-            resultsDiv.innerHTML = '<div style="padding: 10px;">😔 Ничего не найдено</div>';
-            return;
-        }
-        resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">🎬 Результаты VK:</div>';
-        data.results.forEach(video => {
-            const item = document.createElement('div');
-            item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;';
-            item.onclick = () => {
-                loadVideo(video.video_url);
-                socket.emit('change_video', { room_id: roomId, video_url: video.video_url });
-                resultsDiv.style.display = 'none';
-            };
-            item.innerHTML = `<div style="font-weight: 500;">${video.title}</div>`;
-            resultsDiv.appendChild(item);
-        });
-    })
-    .catch(err => {
-        resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${err}</div>`;
-    });
-};
 </script>
-{% endblock %}
