@@ -50,6 +50,7 @@
     let player = null;
     let isLocalAction = false;
     let currentVideoId = '';
+    let accessToken = null;  // ← добавить переменную для токена
     
     const GOOGLE_CLIENT_ID = '{{ google_client_id }}';
     
@@ -101,29 +102,37 @@
     
     // ========== АВТОРИЗАЦИЯ ==========
     function authenticateUser() {
-    const authUrl = 'https://accounts.google.com/o/oauth2/auth?' +
-        'client_id=' + GOOGLE_CLIENT_ID +
-        '&redirect_uri=' + encodeURIComponent(window.location.origin + '/oauth2callback') +
-        '&response_type=code' +
-        '&scope=' + encodeURIComponent(
-            'openid ' +
-            'email ' +
-            'profile ' +
-            'https://www.googleapis.com/auth/youtube.force-ssl ' +
-            'https://www.googleapis.com/auth/youtube.readonly'
-        ) +
-        '&access_type=offline' +
-        '&prompt=consent';
+        const authUrl = 'https://accounts.google.com/o/oauth2/auth?' +
+            'client_id=' + GOOGLE_CLIENT_ID +
+            '&redirect_uri=' + encodeURIComponent(window.location.origin + '/oauth2callback') +
+            '&response_type=code' +
+            '&scope=' + encodeURIComponent(
+                'openid ' +
+                'email ' +
+                'profile ' +
+                'https://www.googleapis.com/auth/youtube.force-ssl ' +
+                'https://www.googleapis.com/auth/youtube.readonly'
+            ) +
+            '&access_type=offline' +
+            '&prompt=consent';
+        
+        window.open(authUrl, 'Google Login', 'width=500,height=600');
+    }
     
-    window.open(authUrl, 'Google Login', 'width=500,height=600');
-}
-    
+    // ========== ОБРАБОТКА АВТОРИЗАЦИИ (ОДИН РАЗ) ==========
     window.addEventListener('message', function(event) {
-        if (event.data.type === 'auth_success') {
-            console.log('Auth success, reloading video...');
+        if (event.data.type === 'auth_success' && event.data.access_token) {
+            console.log('Access token получен');
+            accessToken = event.data.access_token;
+            // Перезагружаем текущее видео
             if (currentVideoId && player && player.loadVideoById) {
                 player.loadVideoById(currentVideoId);
             }
+        } else if (event.data.type === 'auth_error') {
+            console.error('Ошибка авторизации:', event.data.error);
+            alert('Ошибка авторизации: ' + event.data.error);
+        } else if (event.data.type === 'auth_cancelled') {
+            console.log('Авторизация отменена');
         }
     });
     
@@ -230,21 +239,6 @@
         console.log('✅ WebSocket connected');
         socket.emit('join', { room_id: roomId });
     });
-    // ========== ОБРАБОТКА АВТОРИЗАЦИИ ==========
-window.addEventListener('message', function(event) {
-    if (event.data.type === 'auth_success' && event.data.access_token) {
-        console.log('Access token получен');
-        accessToken = event.data.access_token;
-        // Перезагружаем текущее видео
-        if (currentVideoId && player && player.loadVideoById) {
-            player.loadVideoById(currentVideoId);
-        }
-    } else if (event.data.type === 'auth_error') {
-        console.error('Ошибка авторизации:', event.data.error);
-        alert('Ошибка авторизации: ' + event.data.error);
-    } else if (event.data.type === 'auth_cancelled') {
-        console.log('Авторизация отменена');
-    }
-});
 </script>
+
 {% endblock %}
