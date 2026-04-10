@@ -20,18 +20,23 @@
     <hr>
     
     <div style="margin-top: 20px;">
-        <h3>🎥 Синхропросмотр (YouTube)</h3>
+        <h3>🎥 Синхропросмотр</h3>
         
         <!-- Поиск -->
         <div style="margin-bottom: 10px;">
-            <input type="text" id="search-query" placeholder="🔍 Найти видео на YouTube..." style="width: 60%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
-            <button onclick="searchYouTube()" class="btn" style="width: 35%; background: #28a745;">🔍 Найти</button>
+            <input type="text" id="search-query" placeholder="🔍 Найти видео..." style="width: 60%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
+            <button onclick="searchYouTube()" class="btn" style="width: 35%; background: #28a745;">🔍 YouTube</button>
+            <button onclick="searchLordFilm()" class="btn" style="width: 35%; background: #dc3545;">🎬 LordFilm</button>
         </div>
         <div id="search-results" style="margin-bottom: 10px; display: none; background: white; border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;"></div>
         
-        <!-- Invidious плеер -->
-        <div id="invidious-player" style="width: 100%; aspect-ratio: 16 / 9;">
-            <iframe id="video-iframe" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>
+        <!-- Видеоплеер -->
+        <div id="player-container" style="width: 100%; aspect-ratio: 16 / 9;">
+            <video id="video-player" width="100%" controls style="border-radius: 16px; background: black; display: block;">
+                <source id="video-source" src="" type="video/mp4">
+                Ваш браузер не поддерживает видео
+            </video>
+            <iframe id="video-iframe" width="100%" height="100%" frameborder="0" allowfullscreen style="display: none;"></iframe>
         </div>
         
         <div style="margin-top: 10px; display: flex; gap: 10px;">
@@ -46,37 +51,65 @@
     const socket = io(window.location.origin, { transports: ['websocket'] });
     const roomId = {{ room.id }};
     
+    let player = null;
     let isLocalAction = false;
-    let currentVideoId = '';
-    let isPlaying = false;
+    let currentVideoUrl = '';
+    
+    const video = document.getElementById('video-player');
+    const iframe = document.getElementById('video-iframe');
     
     socket.emit('join', { room_id: roomId });
     
-    const iframe = document.getElementById('video-iframe');
+    // ========== ЗАГРУЗКА ВИДЕО ==========
+    function loadVideo(url) {
+        currentVideoUrl = url;
+        
+        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+            // YouTube
+            video.style.display = 'none';
+            iframe.style.display = 'block';
+            
+            let videoId = url.split('v=')[1];
+            if (!videoId) {
+                videoId = url.split('/').pop();
+            }
+            const invidiousUrl = `https://invidious.fdn.fr/embed/${videoId}?autoplay=0&controls=1`;
+            iframe.src = invidiousUrl;
+        } else {
+            // MP4 или прямая ссылка
+            iframe.style.display = 'none';
+            video.style.display = 'block';
+            video.src = url;
+            video.load();
+        }
+    }
     
     // ========== УПРАВЛЕНИЕ ==========
     function playVideo() {
         if (isLocalAction) return;
         isLocalAction = true;
-        // Отправляем событие play
-        socket.emit('play', { room_id: roomId, current_time: Date.now() / 1000 });
+        if (video.style.display !== 'none') {
+            video.play();
+            socket.emit('play', { room_id: roomId, current_time: video.currentTime });
+        } else {
+            socket.emit('play', { room_id: roomId, current_time: Date.now() / 1000 });
+        }
         setTimeout(() => { isLocalAction = false; }, 200);
     }
     
     function pauseVideo() {
         if (isLocalAction) return;
         isLocalAction = true;
-        socket.emit('pause', { room_id: roomId, current_time: Date.now() / 1000 });
+        if (video.style.display !== 'none') {
+            video.pause();
+            socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
+        } else {
+            socket.emit('pause', { room_id: roomId, current_time: Date.now() / 1000 });
+        }
         setTimeout(() => { isLocalAction = false; }, 200);
     }
     
-    function loadVideo(videoId) {
-        currentVideoId = videoId;
-        const invidiousUrl = `https://invidious.fdn.fr/embed/${videoId}?autoplay=0&controls=1`;
-        iframe.src = invidiousUrl;
-    }
-    
-    // ========== ПОИСК ==========
+    // ========== ПОИСК YOUTUBE ==========
     window.searchYouTube = function() {
         const query = document.getElementById('search-query').value;
         if (!query.trim()) return;
@@ -112,32 +145,79 @@
     };
     
     function selectVideo(videoId, title) {
-        loadVideo(videoId);
-        socket.emit('change_video', { room_id: roomId, video_id: videoId });
+        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        loadVideo(videoUrl);
+        socket.emit('change_video', { room_id: roomId, video_url: videoUrl });
         document.getElementById('search-results').style.display = 'none';
         document.getElementById('search-query').value = '';
     }
+    
+    // ========== ПОИСК LORD FILM ==========
+    window.searchLordFilm = function() {
+        const query = document.getElementById('search-query').value;
+        if (!query.trim()) return;
+        
+        const resultsDiv = document.getElementById('search-results');
+        resultsDiv.style.display = 'block';
+        resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск на LordFilm...</div>';
+        
+        fetch('/api/search_lordfilm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.video_url) {
+                loadVideo(data.video_url);
+                socket.emit('change_video', { room_id: roomId, video_url: data.video_url });
+                resultsDiv.style.display = 'none';
+            } else {
+                resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ ${data.error || 'Видео не найдено'}</div>`;
+            }
+        })
+        .catch(err => {
+            resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${err}</div>`;
+        });
+    };
     
     // ========== WEBSOCKET СИНХРОНИЗАЦИЯ ==========
     socket.on('play_sync', (data) => {
         if (isLocalAction) return;
         isLocalAction = true;
-        // Для iframe нет API управления, только синхронизация времени
-        console.log('Play event received');
+        if (video.style.display !== 'none') {
+            const diff = Math.abs(video.currentTime - data.current_time);
+            if (diff > 0.5) {
+                video.currentTime = data.current_time;
+            }
+            video.play();
+        }
         setTimeout(() => { isLocalAction = false; }, 300);
     });
     
     socket.on('pause_sync', (data) => {
         if (isLocalAction) return;
         isLocalAction = true;
-        console.log('Pause event received');
+        if (video.style.display !== 'none') {
+            video.currentTime = data.current_time;
+            video.pause();
+        }
+        setTimeout(() => { isLocalAction = false; }, 200);
+    });
+    
+    socket.on('seek_sync', (data) => {
+        if (isLocalAction) return;
+        isLocalAction = true;
+        if (video.style.display !== 'none') {
+            video.currentTime = data.current_time;
+        }
         setTimeout(() => { isLocalAction = false; }, 200);
     });
     
     socket.on('video_change_sync', (data) => {
         if (isLocalAction) return;
         isLocalAction = true;
-        loadVideo(data.video_id);
+        loadVideo(data.video_url);
         setTimeout(() => { isLocalAction = false; }, 500);
     });
     
