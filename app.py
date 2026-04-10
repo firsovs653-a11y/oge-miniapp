@@ -158,9 +158,22 @@ def google_auth():
 
 @app.route('/oauth2callback')
 def oauth2callback():
+    # Извлекаем code из URL
     code = request.args.get('code')
     if not code:
-        return 'No code provided', 400
+        # Если code нет, значит это просто закрытие окна
+        return '''
+        <html>
+        <body>
+        <script>
+            if (window.opener) {
+                window.opener.postMessage({type: 'auth_cancelled'}, window.location.origin);
+            }
+            window.close();
+        </script>
+        </body>
+        </html>
+        '''
     
     token_url = 'https://oauth2.googleapis.com/token'
     data = {
@@ -171,26 +184,42 @@ def oauth2callback():
         'grant_type': 'authorization_code'
     }
     
-    resp = requests.post(token_url, data=data)
-    token_data = resp.json()
-    access_token = token_data.get('access_token')
-    
-    # Возвращаем HTML, который закроет окно и отправит токен в основное окно
-    return f'''
-    <html>
-    <body>
-    <script>
-        if (window.opener) {{
-            window.opener.postMessage({{
-                type: 'auth_success',
-                access_token: '{access_token}'
-            }}, window.location.origin);
-        }}
-        window.close();
-    </script>
-    </body>
-    </html>
-    '''
+    try:
+        resp = requests.post(token_url, data=data)
+        token_data = resp.json()
+        access_token = token_data.get('access_token')
+        
+        return f'''
+        <html>
+        <body>
+        <script>
+            if (window.opener) {{
+                window.opener.postMessage({{
+                    type: 'auth_success',
+                    access_token: '{access_token}'
+                }}, window.location.origin);
+            }}
+            window.close();
+        </script>
+        </body>
+        </html>
+        '''
+    except Exception as e:
+        return f'''
+        <html>
+        <body>
+        <script>
+            if (window.opener) {{
+                window.opener.postMessage({{
+                    type: 'auth_error',
+                    error: '{str(e)}'
+                }}, window.location.origin);
+            }}
+            window.close();
+        </script>
+        </body>
+        </html>
+        '''
 
 @app.route('/google_logout')
 def google_logout():
