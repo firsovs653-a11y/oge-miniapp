@@ -230,5 +230,21 @@
         console.log('✅ WebSocket connected');
         socket.emit('join', { room_id: roomId });
     });
+    // ========== ОБРАБОТКА АВТОРИЗАЦИИ ==========
+window.addEventListener('message', function(event) {
+    if (event.data.type === 'auth_success' && event.data.access_token) {
+        console.log('Access token получен');
+        accessToken = event.data.access_token;
+        // Перезагружаем текущее видео
+        if (currentVideoId && player && player.loadVideoById) {
+            player.loadVideoById(currentVideoId);
+        }
+    } else if (event.data.type === 'auth_error') {
+        console.error('Ошибка авторизации:', event.data.error);
+        alert('Ошибка авторизации: ' + event.data.error);
+    } else if (event.data.type === 'auth_cancelled') {
+        console.log('Авторизация отменена');
+    }
+});
 </script>
 {% endblock %}
