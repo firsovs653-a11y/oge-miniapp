@@ -1,33 +1,52 @@
 {% extends "base.html" %}
 
-{% block title %}Мои друзья{% endblock %}
+{% block title %}Друзья | FIRSOV{% endblock %}
 
 {% block content %}
 <div class="friends-container">
     <div class="friends-header">
-        <h1>👥 Мои друзья</h1>
-        <a href="{{ url_for('search') }}" class="btn-search">🔍 Найти друзей</a>
+        <h1>👥 Друзья</h1>
+        <a href="{{ url_for('search') }}" class="btn btn-primary">🔍 Найти друзей</a>
     </div>
 
-    <div class="card">
-        <h3>📨 Входящие заявки</h3>
+    <!-- Входящие заявки -->
+    <div class="glass-card">
+        <div class="card-header">
+            <h3>📨 Входящие заявки</h3>
+            {% if incoming_requests %}
+                <span class="badge">{{ incoming_requests|length }}</span>
+            {% endif %}
+        </div>
+        
         {% if incoming_requests %}
-            {% for req in incoming_requests %}
-                <div class="request-item">
-                    <span class="request-username">{{ req.from_user.username }}</span>
-                    <div class="request-actions">
-                        <a href="{{ url_for('accept_request', request_id=req.id) }}" class="btn-accept">✅ Принять</a>
-                        <a href="{{ url_for('reject_request', request_id=req.id) }}" class="btn-reject">❌ Отклонить</a>
+            <div class="requests-list">
+                {% for req in incoming_requests %}
+                    <div class="request-item">
+                        <div class="request-user">
+                            <span class="user-avatar">👤</span>
+                            <span class="user-name">{{ req.from_user.username }}</span>
+                        </div>
+                        <div class="request-actions">
+                            <a href="{{ url_for('accept_request', request_id=req.id) }}" class="btn btn-success btn-sm">✓ Принять</a>
+                            <a href="{{ url_for('reject_request', request_id=req.id) }}" class="btn btn-danger btn-sm">✕ Отклонить</a>
+                        </div>
                     </div>
-                </div>
-            {% endfor %}
+                {% endfor %}
+            </div>
         {% else %}
-            <p class="empty-text">Нет новых заявок</p>
+            <p class="empty-text">Нет входящих заявок</p>
         {% endif %}
     </div>
 
-    <div class="card">
-        <h3>👤 Список друзей</h3>
+    <!-- Список друзей -->
+    <div class="glass-card">
+        <div class="card-header">
+            <h3>👤 Мои друзья</h3>
+            {% if current_user.friends.count() > 0 %}
+                <span class="badge">{{ current_user.friends.count() }}</span>
+            {% endif %}
+        </div>
+        
         {% if current_user.friends.count() > 0 %}
             <div class="friends-grid">
                 {% for friend in current_user.friends %}
@@ -39,8 +58,8 @@
             </div>
         {% else %}
             <p class="empty-text">У вас пока нет друзей</p>
-            <div class="empty-actions">
-                <a href="{{ url_for('search') }}" class="btn">🔍 Найти друзей</a>
+            <div class="empty-action">
+                <a href="{{ url_for('search') }}" class="btn btn-primary">🔍 Найти друзей</a>
             </div>
         {% endif %}
     </div>
@@ -56,43 +75,60 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 30px;
+        margin-bottom: 24px;
     }
     
     .friends-header h1 {
-        color: #fff;
         margin: 0;
         font-size: 32px;
+        color: rgba(255, 255, 255, 0.95);
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
     }
     
-    .btn-search {
-        background: #f5c518;
-        color: #000;
-        padding: 12px 24px;
-        border-radius: 12px;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 16px;
-        transition: background 0.2s;
-    }
-    
-    .btn-search:hover {
-        background: #ffd700;
-        text-decoration: none;
-    }
-    
-    .card {
-        background: #1a1a1a;
-        border-radius: 16px;
+    /* Стеклянные карточки */
+    .glass-card {
+        background: rgba(20, 20, 35, 0.25);
+        backdrop-filter: blur(25px) saturate(200%);
+        -webkit-backdrop-filter: blur(25px) saturate(200%);
+        border-radius: 24px;
         padding: 24px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        border: 0.5px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
     }
     
-    .card h3 {
-        color: #fff;
-        margin: 0 0 20px 0;
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .card-header h3 {
+        margin: 0;
         font-size: 18px;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+        text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+    }
+    
+    .badge {
+        background: rgba(245, 197, 24, 0.15);
+        border: 0.5px solid rgba(245, 197, 24, 0.3);
+        color: #f5c518;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 500;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+    
+    /* Список заявок */
+    .requests-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
     }
     
     .request-item {
@@ -100,56 +136,45 @@
         justify-content: space-between;
         align-items: center;
         padding: 12px 0;
-        border-bottom: 1px solid #333;
+        border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
     }
     
     .request-item:last-child {
         border-bottom: none;
     }
     
-    .request-username {
-        color: #fff;
+    .request-user {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .user-avatar {
+        font-size: 28px;
+        opacity: 0.8;
+    }
+    
+    .user-name {
+        color: rgba(255, 255, 255, 0.9);
         font-size: 16px;
         font-weight: 500;
+        text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
     }
     
     .request-actions {
         display: flex;
-        gap: 10px;
+        gap: 8px;
     }
     
-    .btn-accept, .btn-reject {
-        padding: 8px 16px;
-        border-radius: 8px;
-        text-decoration: none;
-        font-size: 14px;
-        font-weight: 500;
-        transition: all 0.2s;
+    .btn-sm {
+        padding: 6px 14px !important;
+        font-size: 13px !important;
     }
     
-    .btn-accept {
-        background: #28a745;
-        color: white;
-    }
-    
-    .btn-accept:hover {
-        background: #34ce57;
-        text-decoration: none;
-    }
-    
-    .btn-reject {
-        background: #dc3545;
-        color: white;
-    }
-    
-    .btn-reject:hover {
-        background: #ff4757;
-        text-decoration: none;
-    }
-    
+    /* Сетка друзей */
     .friends-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 12px;
     }
     
@@ -158,56 +183,76 @@
         flex-direction: column;
         align-items: center;
         padding: 20px 12px;
-        background: #2a2a2a;
-        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 0.5px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
         text-decoration: none;
-        transition: transform 0.2s, background 0.2s;
+        transition: all 0.25s;
     }
     
     .friend-card:hover {
-        background: #333;
+        background: rgba(245, 197, 24, 0.08);
+        border-color: rgba(245, 197, 24, 0.2);
         transform: translateY(-2px);
         text-decoration: none;
     }
     
     .friend-avatar {
-        font-size: 40px;
+        font-size: 48px;
         margin-bottom: 8px;
+        opacity: 0.8;
     }
     
     .friend-name {
-        color: #fff;
+        color: rgba(255, 255, 255, 0.9);
         font-size: 14px;
         font-weight: 500;
         text-align: center;
+        text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
     }
     
+    /* Пустые состояния */
     .empty-text {
-        color: #888;
+        color: rgba(255, 255, 255, 0.5);
         text-align: center;
-        padding: 20px;
+        padding: 30px;
         font-size: 15px;
+        text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
     }
     
-    .empty-actions {
+    .empty-action {
         text-align: center;
         margin-top: 15px;
     }
     
-    .btn {
-        background: #f5c518;
-        color: #000;
-        padding: 12px 24px;
-        border-radius: 12px;
-        text-decoration: none;
-        font-weight: 600;
-        display: inline-block;
-        transition: background 0.2s;
-    }
-    
-    .btn:hover {
-        background: #ffd700;
-        text-decoration: none;
+    /* Адаптивность */
+    @media (max-width: 600px) {
+        .friends-header {
+            flex-direction: column;
+            gap: 15px;
+            text-align: center;
+        }
+        
+        .request-item {
+            flex-direction: column;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        
+        .request-actions {
+            width: 100%;
+        }
+        
+        .request-actions .btn {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .friends-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 </style>
 {% endblock %}
