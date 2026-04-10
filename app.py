@@ -8,27 +8,8 @@ from flask import Flask, render_template, redirect, url_for, request, flash, jso
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
-# Добавить в WebSocket часть:
+from models import db, User, FriendRequest, Room, RoomMember, RoomInvite, ChatMessage
 
-@socketio.on('send_message')
-def on_send_message(data):
-    room = str(data['room_id'])
-    user_id = current_user.id
-    message = data['message'][:500]  # Ограничение длины
-    
-    # Сохраняем в БД
-    from models import ChatMessage
-    msg = ChatMessage(room_id=int(room), user_id=user_id, message=message)
-    db.session.add(msg)
-    db.session.commit()
-    
-    # Отправляем всем в комнате
-    emit('new_message', {
-        'username': current_user.username,
-        'message': message,
-        'timestamp': msg.created_at.strftime('%H:%M')
-    }, room=room)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///kinobase.db')
@@ -42,14 +23,11 @@ login_manager.login_view = 'login'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # ==================== VK API ====================
-
 VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 
 # ==================== VK VIDEO SEARCH ====================
-
 @app.route('/api/search_vk', methods=['POST'])
 @login_required
-
 def search_vk():
     data = request.get_json()
     query = data.get('query', '').strip()
@@ -57,7 +35,6 @@ def search_vk():
     if not query:
         return jsonify({'error': 'Empty query'}), 400
     
-    # Заглушка — возвращает тестовые видео
     return jsonify({
         'results': [
             {
@@ -76,7 +53,6 @@ def search_vk():
     })
 
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
-
 def generate_room_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
@@ -186,7 +162,6 @@ def reject_request(request_id):
     return redirect(url_for('friends'))
 
 # ==================== КОМНАТЫ ====================
-
 @app.route('/rooms')
 @login_required
 def rooms():
@@ -293,7 +268,6 @@ def leave_room_route(room_id):
     return redirect(url_for('rooms'))
 
 # ==================== WEBSOCKET СИНХРОНИЗАЦИЯ ====================
-
 @socketio.on('join')
 def on_join(data):
     room = str(data['room_id'])
@@ -328,7 +302,22 @@ def on_change_video(data):
     print(f'Change video in room {room} to {url}')
     emit('video_change_sync', {'video_url': url}, room=room, include_self=False)
 
-# ==================== ЗАПУСК ====================
+@socketio.on('send_message')
+def on_send_message(data):
+    room = str(data['room_id'])
+    user_id = current_user.id
+    message = data['message'][:500]
+    
+    msg = ChatMessage(room_id=int(room), user_id=user_id, message=message)
+    db.session.add(msg)
+    db.session.commit()
+    
+    emit('new_message', {
+        'username': current_user.username,
+        'message': message,
+        'timestamp': msg.created_at.strftime('%H:%M')
+    }, room=room)
 
+# ==================== ЗАПУСК ====================
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
