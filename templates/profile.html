@@ -1,24 +1,106 @@
 {% extends "base.html" %}
 
-{% block title %}Профиль {{ profile_user.username }}{% endblock %}
+{% block title %}{{ profile_user.username }} | FIRSOV{% endblock %}
 
 {% block content %}
-<div class="form-card" style="text-align: center;">
-    <h1>👤 {{ profile_user.username }}</h1>
-    <p>На сайте с: {{ profile_user.created_at.strftime('%d.%m.%Y') }}</p>
-    
-    {% if profile_user.id == current_user.id %}
-        <p>Это ваш профиль</p>
-        <a href="{{ url_for('friends') }}" class="btn" style="display: inline-block; width: auto;">👥 Мои друзья</a>
-    {% else %}
-        {% if is_friend %}
-            <p>✅ Вы друзья</p>
-        {% elif pending_request %}
-            <p>⏳ Заявка отправлена</p>
+<div class="profile-container">
+    <div class="glass-card profile-card">
+        <div class="profile-avatar">👤</div>
+        <h1 class="profile-username">{{ profile_user.username }}</h1>
+        <p class="profile-date">На сайте с {{ profile_user.created_at.strftime('%d.%m.%Y') }}</p>
+        
+        {% if profile_user.id == current_user.id %}
+            <div class="profile-badge">Это ваш профиль</div>
+            <a href="{{ url_for('friends') }}" class="btn btn-primary">👥 Мои друзья</a>
         {% else %}
-            <a href="{{ url_for('send_request', user_id=profile_user.id) }}" class="btn">➕ Добавить в друзья</a>
+            {% if is_friend %}
+                <div class="profile-badge friend">✅ Вы друзья</div>
+            {% elif pending_request %}
+                <div class="profile-badge pending">⏳ Заявка отправлена</div>
+            {% else %}
+                <a href="{{ url_for('send_request', user_id=profile_user.id) }}" class="btn btn-add">➕ Добавить в друзья</a>
+            {% endif %}
         {% endif %}
-    {% endif %}
-    
+    </div>
 </div>
+
+<style>
+    .profile-container {
+        max-width: 480px;
+        margin: 40px auto;
+    }
+    
+    .glass-card {
+        background: rgba(20, 20, 35, 0.25);
+        backdrop-filter: blur(25px) saturate(200%);
+        -webkit-backdrop-filter: blur(25px) saturate(200%);
+        border-radius: 24px;
+        padding: 32px;
+        border: 0.5px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    }
+    
+    .profile-card {
+        text-align: center;
+    }
+    
+    .profile-avatar {
+        font-size: 80px;
+        margin-bottom: 20px;
+        opacity: 0.8;
+    }
+    
+    .profile-username {
+        color: rgba(255, 255, 255, 0.95);
+        margin: 0 0 8px 0;
+        font-size: 28px;
+        font-weight: 600;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    .profile-date {
+        color: rgba(255, 255, 255, 0.5);
+        margin-bottom: 24px;
+        font-size: 14px;
+        text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    .profile-badge {
+        display: inline-block;
+        padding: 8px 20px;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 0.5px solid rgba(255, 255, 255, 0.1);
+        border-radius: 30px;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 14px;
+        margin-bottom: 20px;
+        text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    .profile-badge.friend {
+        background: rgba(92, 255, 133, 0.08);
+        border-color: rgba(92, 255, 133, 0.3);
+        color: #5cff85;
+    }
+    
+    .profile-badge.pending {
+        background: rgba(245, 197, 24, 0.08);
+        border-color: rgba(245, 197, 24, 0.3);
+        color: #f5c518;
+    }
+    
+    .btn-add {
+        color: #4da6ff !important;
+        border: 1px solid rgba(77, 166, 255, 0.5) !important;
+        background: transparent !important;
+    }
+    
+    .btn-add:hover {
+        border-color: #4da6ff !important;
+        background: rgba(77, 166, 255, 0.08) !important;
+        box-shadow: 0 0 15px rgba(77, 166, 255, 0.15) !important;
+    }
+</style>
 {% endblock %}
