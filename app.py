@@ -9,6 +9,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
+from lordfilm_parser import LordFilmWrapper
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -30,6 +31,12 @@ GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 # ==================== YOUTUBE API ====================
 
 YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
+
+# ==================== LORD FILM PARSER ====================
+
+lordfilm = LordFilmWrapper()
+
+# ==================== YOUTUBE SEARCH ====================
 
 @app.route('/api/search_youtube', methods=['POST'])
 @login_required
@@ -72,6 +79,33 @@ def search_youtube():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ==================== LORD FILM SEARCH ====================
+
+@app.route('/api/search_lordfilm', methods=['POST'])
+@login_required
+def search_lordfilm():
+    data = request.get_json()
+    query = data.get('query', '').strip()
+    
+    if not query:
+        return jsonify({'error': 'Empty query'}), 400
+    
+    result = lordfilm.search_movie(query)
+    
+    if result:
+        video_url = result if isinstance(result, str) else result.get('url')
+        if video_url:
+            return jsonify({
+                'success': True,
+                'title': query,
+                'video_url': video_url
+            })
+    
+    return jsonify({
+        'success': False,
+        'error': 'Видео не найдено'
+    }), 404
 
 # ==================== GOOGLE LOGIN ====================
 
@@ -158,10 +192,8 @@ def google_auth():
 
 @app.route('/oauth2callback')
 def oauth2callback():
-    # Извлекаем code из URL
     code = request.args.get('code')
     if not code:
-        # Если code нет, значит это просто закрытие окна
         return '''
         <html>
         <body>
@@ -483,11 +515,12 @@ def on_seek(data):
 @socketio.on('change_video')
 def on_change_video(data):
     room = str(data['room_id'])
-    video_id = data['video_id']
-    print(f'Change video in room {room} to {video_id}')
-    emit('video_change_sync', {'video_id': video_id}, room=room, include_self=False)
+    url = data['video_url']
+    print(f'Change video in room {room} to {url}')
+    emit('video_change_sync', {'video_url': url}, room=room, include_self=False)
 
 # ==================== ЗАПУСК ====================
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
+        
