@@ -9,7 +9,6 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
-from authlib.integrations.flask_client import OAuth
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -21,21 +20,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # ==================== GOOGLE OAuth ====================
 
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
-
-oauth = OAuth(app)
-google = oauth.register(
-    name='google',
-    client_id=GOOGLE_CLIENT_ID,
-    client_secret=GOOGLE_CLIENT_SECRET,
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'}
-)
 
 # ==================== YOUTUBE API ====================
 
@@ -83,15 +73,31 @@ def search_youtube():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ==================== GOOGLE LOGIN (FIXED STATE) ====================
+# ==================== GOOGLE LOGIN ====================
 
 @app.route('/google_login')
 def google_login():
+    state = secrets.token_urlsafe(32)
+    session['oauth_state'] = state
     redirect_uri = 'https://oge-miniapp-production.up.railway.app/google_auth'
-    return google.authorize_redirect(redirect_uri)
+    auth_url = 'https://accounts.google.com/o/oauth2/auth?' + \
+        'client_id=' + GOOGLE_CLIENT_ID + \
+        '&redirect_uri=' + redirect_uri + \
+        '&response_type=code' + \
+        '&scope=email profile' + \
+        '&state=' + state
+    return redirect(auth_url)
 
 @app.route('/google_auth')
 def google_auth():
+    # Проверяем state
+    saved_state = session.pop('oauth_state', None)
+    request_state = request.args.get('state')
+    
+    if saved_state != request_state:
+        flash('Ошибка авторизации: некорректный state')
+        return redirect(url_for('index'))
+    
     code = request.args.get('code')
     if not code:
         flash('Ошибка: не получен код авторизации')
@@ -153,8 +159,7 @@ def google_auth():
         return redirect(url_for('index'))
     
     return redirect(url_for('index'))
-    
-    # ...
+
 @app.route('/google_logout')
 def google_logout():
     session.pop('google_user', None)
