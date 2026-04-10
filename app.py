@@ -30,8 +30,7 @@ VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 
 @app.route('/api/search_vk', methods=['POST'])
 @login_required
-@app.route('/api/search_vk', methods=['POST'])
-@login_required
+
 def search_vk():
     data = request.get_json()
     query = data.get('query', '').strip()
