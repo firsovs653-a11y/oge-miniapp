@@ -28,6 +28,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .nav a {
             color: #1a1a2e;
@@ -37,6 +39,19 @@
         }
         .nav a:hover {
             color: #007aff;
+        }
+        .btn-google {
+            background: #4285f4;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .btn-google:hover {
+            background: #3367d6;
+            color: white;
         }
         .flash-messages {
             margin-bottom: 20px;
@@ -81,6 +96,9 @@
             cursor: pointer;
             width: 100%;
             font-weight: 600;
+            text-align: center;
+            display: inline-block;
+            text-decoration: none;
         }
         .btn:hover {
             background: #0051d5;
@@ -107,6 +125,7 @@
                     <a href="{{ url_for('search') }}">🔍 Поиск</a>
                     <a href="{{ url_for('logout') }}">Выйти</a>
                 {% else %}
+                    <a href="{{ url_for('google_login') }}" class="btn-google">🔑 Войти через Google</a>
                     <a href="{{ url_for('login') }}">Войти</a>
                     <a href="{{ url_for('register') }}">Регистрация</a>
                 {% endif %}
