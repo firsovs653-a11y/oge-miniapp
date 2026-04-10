@@ -158,7 +158,6 @@ def google_auth():
 
 @app.route('/oauth2callback')
 def oauth2callback():
-    # Этот эндпоинт для завершения OAuth потока YouTube
     return '''
     <html>
     <body>
@@ -168,7 +167,6 @@ def oauth2callback():
         }
         window.close();
     </script>
-    <p>Авторизация завершена. Окно можно закрыть.</p>
     </body>
     </html>
     '''
