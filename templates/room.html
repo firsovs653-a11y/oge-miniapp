@@ -59,24 +59,24 @@
     // ========== ИНИЦИАЛИЗАЦИЯ YOUTUBE PLAYER ==========
     window.onYouTubeIframeAPIReady = function() {
         player = new YT.Player('youtube-container', {
-            height: '100%',
-            width: '100%',
-            videoId: currentVideoId,
-            playerVars: {
-                'origin': window.location.origin,
-                'enablejsapi': 1,
-                'modestbranding': 1,
-                'rel': 0,
-                'controls': 1,
-                'fs': 1
-            },
-            events: {
-                'onReady': onPlayerReady,
-                'onStateChange': onPlayerStateChange,
-                'onError': onPlayerError
-            }
-        });
-    };
+    height: '100%',
+    width: '100%',
+    videoId: currentVideoId,
+    playerVars: {
+        'origin': window.location.origin,
+        'enablejsapi': 1,
+        'modestbranding': 1,
+        'rel': 0,
+        'controls': 1,
+        'fs': 1,
+        'authuser': '0'  // ← добавить эту строку
+    },
+    events: {
+        'onReady': onPlayerReady,
+        'onStateChange': onPlayerStateChange,
+        'onError': onPlayerError
+    }
+});
     
     function onPlayerReady(event) {
         console.log('YouTube player ready');
