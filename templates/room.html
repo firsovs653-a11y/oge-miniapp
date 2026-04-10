@@ -73,10 +73,16 @@
     function changeVideo() {
         const url = document.getElementById('video-url').value;
         if (url) {
+            isRemoteAction = true;
             video.src = url;
             video.load();
-            video.play();
-            socket.emit('change_video', { room_id: roomId, video_url: url });
+            
+            video.addEventListener('loadedmetadata', function onLoaded() {
+                video.removeEventListener('loadedmetadata', onLoaded);
+                video.play().catch(e => {});
+                socket.emit('change_video', { room_id: roomId, video_url: url });
+                setTimeout(() => { isRemoteAction = false; }, 500);
+            });
         }
     }
     
@@ -107,7 +113,7 @@
         if (Math.abs(video.currentTime - data.current_time) > 0.5) {
             video.currentTime = data.current_time;
         }
-        video.play().catch(e => console.log('Play error:', e));
+        video.play().catch(e => {});
         
         remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
     });
@@ -128,7 +134,6 @@
         
         video.currentTime = data.current_time;
         
-        // Если видео было на паузе, но ведущий перематывает - пробуем играть
         if (video.paused) {
             video.play().catch(e => {});
         }
@@ -142,9 +147,12 @@
         
         video.src = data.video_url;
         video.load();
-        video.play().catch(e => console.log('Autoplay blocked'));
         
-        remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
+        video.addEventListener('loadedmetadata', function onLoaded() {
+            video.removeEventListener('loadedmetadata', onLoaded);
+            video.play().catch(e => {});
+            remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
+        });
     });
     
     // ========== ПОИСК VK ==========
@@ -176,11 +184,17 @@
                 const item = document.createElement('div');
                 item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;';
                 item.onclick = () => {
+                    isRemoteAction = true;
                     video.src = videoItem.video_url;
                     video.load();
-                    video.play();
-                    socket.emit('change_video', { room_id: roomId, video_url: videoItem.video_url });
-                    resultsDiv.style.display = 'none';
+                    
+                    video.addEventListener('loadedmetadata', function onLoaded() {
+                        video.removeEventListener('loadedmetadata', onLoaded);
+                        video.play().catch(e => {});
+                        socket.emit('change_video', { room_id: roomId, video_url: videoItem.video_url });
+                        resultsDiv.style.display = 'none';
+                        setTimeout(() => { isRemoteAction = false; }, 500);
+                    });
                 };
                 item.innerHTML = `<div style="font-weight: 500;">${videoItem.title}</div>`;
                 resultsDiv.appendChild(item);
