@@ -247,15 +247,17 @@ def reject_request(request_id):
 
 # ==================== КОМНАТЫ ====================
 
-@app.route('/rooms')
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+
+@app.route('/room/<int:room_id>')
 @login_required
-def rooms():
-    my_rooms = Room.query.filter(
-        (Room.created_by == current_user.id) |
-        (Room.id.in_(db.session.query(RoomMember.room_id).filter(RoomMember.user_id == current_user.id)))
-    ).all()
-    invites = RoomInvite.query.filter_by(to_user_id=current_user.id, status='pending').all()
-    return render_template('rooms.html', rooms=my_rooms, invites=invites)
+def room(room_id):
+    room = Room.query.get_or_404(room_id)
+    if room.is_private and not room.is_member(current_user.id) and room.created_by != current_user.id:
+        flash('Нет доступа')
+        return redirect(url_for('rooms'))
+    members = RoomMember.query.filter_by(room_id=room.id).all()
+    return render_template('room.html', room=room, members=members, google_client_id=GOOGLE_CLIENT_ID)
 
 @app.route('/room/create', methods=['GET', 'POST'])
 @login_required
