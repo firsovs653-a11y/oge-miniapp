@@ -3,11 +3,12 @@ import random
 import string
 import os
 import requests
-from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
+from flask import Flask, render_template, redirect, url_for, request, flash, jsonify, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
+from authlib.integrations.flask_client import OAuth
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -21,21 +22,21 @@ login_manager.login_view = 'login'
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-def generate_room_code():
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+# ==================== GOOGLE OAuth ====================
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 
-@app.context_processor
-def inject_user():
-    return dict(current_user=current_user)
+oauth = OAuth(app)
+google = oauth.register(
+    name='google',
+    client_id=GOOGLE_CLIENT_ID,
+    client_secret=GOOGLE_CLIENT_SECRET,
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
 
-with app.app_context():
-    db.create_all()
-
-# ==================== ПОИСК НА YOUTUBE (ЧЕРЕЗ API) ====================
+# ==================== YOUTUBE API ====================
 
 YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
 
@@ -81,7 +82,63 @@ def search_youtube():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ==================== ОСТАЛЬНЫЕ МАРШРУТЫ (без изменений) ====================
+# ==================== GOOGLE LOGIN ====================
+
+@app.route('/google_login')
+def google_login():
+    redirect_uri = url_for('google_auth', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+@app.route('/google_auth')
+def google_auth():
+    token = google.authorize_access_token()
+    user_info = google.parse_id_token(token)
+    
+    # Сохраняем информацию в сессии Flask
+    session['google_user'] = user_info
+    session['user_email'] = user_info.get('email')
+    session['user_name'] = user_info.get('name')
+    session['user_avatar'] = user_info.get('picture')
+    
+    # Проверяем, есть ли пользователь в БД
+    user = User.query.filter_by(email=user_info.get('email')).first()
+    if not user:
+        # Создаём нового пользователя
+        user = User(
+            username=user_info.get('name').replace(' ', '_'),
+            email=user_info.get('email'),
+            password=generate_password_hash(os.urandom(24).hex())
+        )
+        db.session.add(user)
+        db.session.commit()
+    
+    login_user(user)
+    flash(f'Добро пожаловать, {user_info.get("name")}!')
+    return redirect(url_for('index'))
+
+@app.route('/google_logout')
+def google_logout():
+    session.pop('google_user', None)
+    session.pop('user_email', None)
+    logout_user()
+    flash('Вы вышли из Google аккаунта')
+    return redirect(url_for('index'))
+
+# ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
+
+def generate_room_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+@app.context_processor
+def inject_user():
+    return dict(current_user=current_user, google_user=session.get('google_user'))
+
+with app.app_context():
+    db.create_all()
 
 @app.route('/')
 def index():
@@ -307,7 +364,7 @@ def on_play(data):
 @socketio.on('pause')
 def on_pause(data):
     room = str(data['room_id'])
-    time = data['current_time}']
+    time = data['current_time']
     print(f'Pause in room {room} at {time}')
     emit('pause_sync', {'current_time': time}, room=room, include_self=False)
 
