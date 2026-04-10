@@ -491,6 +491,140 @@
                 font-size: 20px;
             }
         }
+        /* ========== ГЛОБАЛЬНЫЕ ПРОЗРАЧНЫЕ КНОПКИ ========== */
+
+/* Все кнопки прозрачные */
+.btn,
+button,
+a.btn,
+form .btn,
+.form-card .btn,
+.card .btn,
+[class*="btn"] {
+    background: rgba(255, 255, 255, 0.06) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.15) !important;
+    padding: 10px 20px !important;
+    border-radius: 30px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    transition: all 0.25s !important;
+    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: none !important;
+}
+
+/* Золотые акцентные кнопки */
+.btn-primary,
+.btn-success,
+.btn-accept,
+.btn-add,
+button[type="submit"],
+.btn-vk,
+.btn-load,
+.btn-play,
+.btn-pause,
+.btn-send {
+    background: rgba(245, 197, 24, 0.15) !important;
+    border: 0.5px solid rgba(245, 197, 24, 0.35) !important;
+    color: #f5c518 !important;
+}
+
+/* Красные кнопки */
+.btn-danger,
+.btn-reject,
+.btn-leave {
+    background: rgba(220, 53, 69, 0.12) !important;
+    border: 0.5px solid rgba(220, 53, 69, 0.35) !important;
+    color: #ff6b6b !important;
+}
+
+/* Зелёные кнопки */
+.btn-success,
+.btn-accept {
+    background: rgba(40, 167, 69, 0.12) !important;
+    border: 0.5px solid rgba(40, 167, 69, 0.35) !important;
+    color: #5cff85 !important;
+}
+
+/* Ховер эффекты */
+.btn:hover,
+button:hover,
+a.btn:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    transform: scale(1.02) !important;
+}
+
+.btn-primary:hover,
+.btn-success:hover,
+.btn-accept:hover,
+.btn-add:hover,
+button[type="submit"]:hover,
+.btn-vk:hover,
+.btn-load:hover,
+.btn-play:hover,
+.btn-pause:hover,
+.btn-send:hover {
+    background: rgba(245, 197, 24, 0.25) !important;
+    border-color: rgba(245, 197, 24, 0.5) !important;
+    box-shadow: 0 0 20px rgba(245, 197, 24, 0.2) !important;
+}
+
+.btn-danger:hover,
+.btn-reject:hover,
+.btn-leave:hover {
+    background: rgba(220, 53, 69, 0.2) !important;
+    border-color: rgba(220, 53, 69, 0.5) !important;
+    box-shadow: 0 0 20px rgba(220, 53, 69, 0.2) !important;
+}
+
+/* Ссылки-кнопки в навигации */
+.nav-links .btn-outline {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.15) !important;
+    padding: 8px 16px !important;
+    border-radius: 30px !important;
+}
+
+.nav-links .btn-outline:hover {
+    background: rgba(245, 197, 24, 0.12) !important;
+    border-color: rgba(245, 197, 24, 0.35) !important;
+    color: #f5c518 !important;
+}
+
+/* Кнопки в формах */
+input[type="submit"],
+button[type="submit"] {
+    background: rgba(245, 197, 24, 0.15) !important;
+    border: 0.5px solid rgba(245, 197, 24, 0.35) !important;
+    color: #f5c518 !important;
+}
+
+/* Убираем стандартные фоны у кнопок */
+.btn-secondary,
+.btn-outline-secondary {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.15) !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Адаптивность для кнопок */
+@media (max-width: 768px) {
+    .btn,
+    button,
+    a.btn {
+        padding: 8px 16px !important;
+        font-size: 13px !important;
+    }
+}
     </style>
 </head>
 <body>
