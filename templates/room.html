@@ -199,5 +199,45 @@
         console.log('✅ WebSocket connected');
         socket.emit('join', { room_id: roomId });
     });
+    window.searchVK = function() {
+    const query = document.getElementById('search-query').value;
+    if (!query.trim()) return;
+    
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;">⏳ Поиск VK...</div>';
+    
+    fetch('/api/search_vk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) {
+            resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${data.error}</div>`;
+            return;
+        }
+        if (!data.results || data.results.length === 0) {
+            resultsDiv.innerHTML = '<div style="padding: 10px;">😔 Ничего не найдено</div>';
+            return;
+        }
+        resultsDiv.innerHTML = '<div style="font-weight: 600; padding: 10px;">🎬 Результаты VK:</div>';
+        data.results.forEach(video => {
+            const item = document.createElement('div');
+            item.style.cssText = 'padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;';
+            item.onclick = () => {
+                loadVideo(video.video_url);
+                socket.emit('change_video', { room_id: roomId, video_url: video.video_url });
+                resultsDiv.style.display = 'none';
+            };
+            item.innerHTML = `<div style="font-weight: 500;">${video.title}</div>`;
+            resultsDiv.appendChild(item);
+        });
+    })
+    .catch(err => {
+        resultsDiv.innerHTML = `<div style="color: red; padding: 10px;">❌ Ошибка: ${err}</div>`;
+    });
+};
 </script>
 {% endblock %}
