@@ -22,11 +22,6 @@ login_manager.login_view = 'login'
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
-# ==================== GOOGLE OAuth ====================
-
-GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
-GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
-
 # ==================== VK API ====================
 
 VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
@@ -36,171 +31,63 @@ VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 @app.route('/api/search_vk', methods=['POST'])
 @login_required
 def search_vk():
-    # Заглушка — тестовое видео
-    return jsonify({
-        'results': [
-            {
-                'title': 'Тестовое видео',
-                'video_url': 'https://www.w3schools.com/html/mov_bbb.mp4',
-                'duration': 600,
-                'views': 1000
-            }
-        ]
-    })
-
-# ==================== GOOGLE LOGIN ====================
-
-@app.route('/google_login')
-def google_login():
-    state = secrets.token_urlsafe(32)
-    session['oauth_state'] = state
-    redirect_uri = 'https://oge-miniapp-production.up.railway.app/google_auth'
-    auth_url = 'https://accounts.google.com/o/oauth2/auth?' + \
-        'client_id=' + GOOGLE_CLIENT_ID + \
-        '&redirect_uri=' + redirect_uri + \
-        '&response_type=code' + \
-        '&scope=email profile' + \
-        '&state=' + state
-    return redirect(auth_url)
-
-@app.route('/google_auth')
-def google_auth():
-    saved_state = session.pop('oauth_state', None)
-    request_state = request.args.get('state')
+    data = request.get_json()
+    query = data.get('query', '').strip()
     
-    if saved_state != request_state:
-        flash('Ошибка авторизации: некорректный state')
-        return redirect(url_for('index'))
+    if not query:
+        return jsonify({'error': 'Empty query'}), 400
     
-    code = request.args.get('code')
-    if not code:
-        flash('Ошибка: не получен код авторизации')
-        return redirect(url_for('index'))
-    
-    token_url = 'https://oauth2.googleapis.com/token'
-    data = {
-        'code': code,
-        'client_id': GOOGLE_CLIENT_ID,
-        'client_secret': GOOGLE_CLIENT_SECRET,
-        'redirect_uri': 'https://oge-miniapp-production.up.railway.app/google_auth',
-        'grant_type': 'authorization_code'
-    }
+    if not VK_ACCESS_TOKEN:
+        return jsonify({'error': 'VK token not configured'}), 500
     
     try:
-        resp = requests.post(token_url, data=data)
-        token_data = resp.json()
+        # Поиск видео
+        search_url = "https://api.vk.com/method/video.search"
+        params = {
+            'q': query,
+            'access_token': VK_ACCESS_TOKEN,
+            'count': 10,
+            'sort': 2,
+            'hd': 1,
+            'adult': 1,
+            'v': '5.131'
+        }
+        response = requests.get(search_url, params=params)
+        data = response.json()
         
-        if 'access_token' not in token_data:
-            flash('Ошибка: не удалось получить access_token')
-            return redirect(url_for('index'))
+        if 'error' in data:
+            return jsonify({'error': data['error']['error_msg']}), 500
         
-        userinfo_resp = requests.get(
-            'https://www.googleapis.com/oauth2/v3/userinfo',
-            headers={'Authorization': f'Bearer {token_data["access_token"]}'}
-        )
-        user_info = userinfo_resp.json()
-        
-        user_name = user_info.get('name')
-        if not user_name:
-            email = user_info.get('email', '')
-            user_name = email.split('@')[0] if email else 'user'
-        
-        username = user_name.replace(' ', '_')
-        
-        session['google_user'] = user_info
-        session['user_email'] = user_info.get('email')
-        session['user_name'] = user_name
-        session['user_avatar'] = user_info.get('picture')
-        
-        user = User.query.filter_by(email=user_info.get('email')).first()
-        if not user:
-            user = User(
-                username=username,
-                email=user_info.get('email'),
-                password=generate_password_hash(os.urandom(24).hex())
-            )
-            db.session.add(user)
-            db.session.commit()
-        
-        login_user(user)
-        flash(f'Добро пожаловать, {user_name}!')
-        
-    except Exception as e:
-        flash(f'Ошибка авторизации: {str(e)}')
-        return redirect(url_for('index'))
-    
-    return redirect(url_for('index'))
-
-@app.route('/oauth2callback')
-def oauth2callback():
-    code = request.args.get('code')
-    if not code:
-        return '''
-        <html>
-        <body>
-        <script>
-            if (window.opener) {
-                window.opener.postMessage({type: 'auth_cancelled'}, window.location.origin);
+        videos = []
+        for item in data.get('response', {}).get('items', []):
+            owner_id = item['owner_id']
+            video_id = item['id']
+            
+            # Получаем прямую MP4 ссылку
+            video_url = f"https://api.vk.com/method/video.get"
+            video_params = {
+                'videos': f"{owner_id}_{video_id}",
+                'access_token': VK_ACCESS_TOKEN,
+                'v': '5.131'
             }
-            window.close();
-        </script>
-        </body>
-        </html>
-        '''
-    
-    token_url = 'https://oauth2.googleapis.com/token'
-    data = {
-        'code': code,
-        'client_id': GOOGLE_CLIENT_ID,
-        'client_secret': GOOGLE_CLIENT_SECRET,
-        'redirect_uri': request.base_url,
-        'grant_type': 'authorization_code'
-    }
-    
-    try:
-        resp = requests.post(token_url, data=data)
-        token_data = resp.json()
-        access_token = token_data.get('access_token')
+            video_response = requests.get(video_url, params=video_params)
+            video_data = video_response.json()
+            
+            files = video_data.get('response', {}).get('items', [{}])[0].get('files', {})
+            mp4_url = files.get('mp4_720') or files.get('mp4_480') or files.get('mp4_360') or files.get('mp4_240')
+            
+            if mp4_url:
+                videos.append({
+                    'title': item['title'],
+                    'video_url': mp4_url,
+                    'duration': item.get('duration', 0),
+                    'views': item.get('views', 0)
+                })
         
-        return f'''
-        <html>
-        <body>
-        <script>
-            if (window.opener) {{
-                window.opener.postMessage({{
-                    type: 'auth_success',
-                    access_token: '{access_token}'
-                }}, window.location.origin);
-            }}
-            window.close();
-        </script>
-        </body>
-        </html>
-        '''
+        return jsonify({'results': videos})
+        
     except Exception as e:
-        return f'''
-        <html>
-        <body>
-        <script>
-            if (window.opener) {{
-                window.opener.postMessage({{
-                    type: 'auth_error',
-                    error: '{str(e)}'
-                }}, window.location.origin);
-            }}
-            window.close();
-        </script>
-        </body>
-        </html>
-        '''
-
-@app.route('/google_logout')
-def google_logout():
-    session.pop('google_user', None)
-    session.pop('user_email', None)
-    logout_user()
-    flash('Вы вышли из Google аккаунта')
-    return redirect(url_for('index'))
+        return jsonify({'error': str(e)}), 500
 
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 
@@ -213,7 +100,7 @@ def load_user(user_id):
 
 @app.context_processor
 def inject_user():
-    return dict(current_user=current_user, google_user=session.get('google_user'))
+    return dict(current_user=current_user)
 
 with app.app_context():
     db.create_all()
@@ -231,9 +118,6 @@ def register():
         if User.query.filter_by(username=username).first():
             flash('Логин занят')
             return redirect(url_for('register'))
-        if User.query.filter_by(email=email).first():
-            flash('Email уже используется')
-            return redirect(url_for('register'))
         user = User(username=username, email=email, password=generate_password_hash(password))
         db.session.add(user)
         db.session.commit()
@@ -249,7 +133,6 @@ def login():
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
             login_user(user)
-            flash(f'Добро пожаловать, {user.username}!')
             return redirect(url_for('index'))
         flash('Неверный логин или пароль')
     return render_template('login.html')
@@ -258,7 +141,6 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash('Вы вышли из аккаунта')
     return redirect(url_for('index'))
 
 @app.route('/friends')
@@ -356,7 +238,7 @@ def room(room_id):
         flash('Нет доступа')
         return redirect(url_for('rooms'))
     members = RoomMember.query.filter_by(room_id=room.id).all()
-    return render_template('room.html', room=room, members=members, google_client_id=GOOGLE_CLIENT_ID)
+    return render_template('room.html', room=room, members=members)
 
 @app.route('/room/join', methods=['POST'])
 @login_required
@@ -424,7 +306,7 @@ def leave_room_route(room_id):
         flash('Вы покинули комнату')
     return redirect(url_for('rooms'))
 
-# ==================== WEBSOCKET ====================
+# ==================== WEBSOCKET СИНХРОНИЗАЦИЯ ====================
 
 @socketio.on('join')
 def on_join(data):
