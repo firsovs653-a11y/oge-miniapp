@@ -98,7 +98,6 @@
     
     function onPlayerError(event) {
         console.error('YouTube player error:', event.data);
-        // Ошибка авторизации (150, 101, 151)
         if (event.data === 150 || event.data === 101 || event.data === 151) {
             showAuthModal();
         }
@@ -135,17 +134,9 @@
             '&scope=email profile https://www.googleapis.com/auth/youtube.readonly' +
             '&access_type=online';
         
-        const authWindow = window.open(authUrl, 'google-auth', 'width=500,height=600');
-        
-        const checkInterval = setInterval(() => {
-            if (authWindow.closed) {
-                clearInterval(checkInterval);
-                if (currentVideoId && player && player.loadVideoById) {
-                    player.loadVideoById(currentVideoId);
-                }
-                closeAuthModal();
-            }
-        }, 500);
+        window.open(authUrl, '_blank');
+        alert('Войдите в Google в новой вкладке, закройте её и обновите страницу');
+        closeAuthModal();
     }
     
     // ========== УПРАВЛЕНИЕ ==========
@@ -153,12 +144,16 @@
         if (isLocalAction || !player) return;
         isLocalAction = true;
         player.playVideo();
+        socket.emit('play', { room_id: roomId, current_time: player.getCurrentTime() });
         setTimeout(() => { isLocalAction = false; }, 200);
     }
     
     function pauseVideo() {
         if (isLocalAction || !player) return;
         isLocalAction = true;
+        const currentTime = player.getCurrentTime();
+        // Сначала отправляем событие, потом ставим на паузу
+        socket.emit('pause', { room_id: roomId, current_time: currentTime });
         player.pauseVideo();
         setTimeout(() => { isLocalAction = false; }, 200);
     }
@@ -225,11 +220,10 @@
     });
     
     socket.on('pause_sync', (data) => {
-        if (isLocalAction || !player) return;
-        isLocalAction = true;
+        console.log('📥 pause_sync received', data);
+        if (!player) return;
         player.seekTo(data.current_time, true);
         player.pauseVideo();
-        setTimeout(() => { isLocalAction = false; }, 200);
     });
     
     socket.on('seek_sync', (data) => {
