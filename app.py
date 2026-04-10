@@ -9,7 +9,6 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite
-from lordfilm_parser import LordFilmWrapper
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -32,9 +31,9 @@ GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 
 YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
 
-# ==================== LORD FILM PARSER ====================
+# ==================== VK API ====================
 
-lordfilm = LordFilmWrapper()
+VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 
 # ==================== YOUTUBE SEARCH ====================
 
@@ -80,32 +79,70 @@ def search_youtube():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ==================== LORD FILM SEARCH ====================
+# ==================== VK VIDEO SEARCH ====================
 
-@app.route('/api/search_lordfilm', methods=['POST'])
+@app.route('/api/search_vk', methods=['POST'])
 @login_required
-def search_lordfilm():
+def search_vk():
     data = request.get_json()
     query = data.get('query', '').strip()
     
     if not query:
         return jsonify({'error': 'Empty query'}), 400
     
-    result = lordfilm.search_movie(query)
+    if not VK_ACCESS_TOKEN:
+        return jsonify({'error': 'VK token not configured'}), 500
     
-    if result:
-        video_url = result if isinstance(result, str) else result.get('url')
-        if video_url:
-            return jsonify({
-                'success': True,
-                'title': query,
-                'video_url': video_url
-            })
-    
-    return jsonify({
-        'success': False,
-        'error': 'Видео не найдено'
-    }), 404
+    try:
+        # Поиск видео
+        search_url = "https://api.vk.com/method/video.search"
+        params = {
+            'q': query,
+            'access_token': VK_ACCESS_TOKEN,
+            'count': 10,
+            'sort': 2,
+            'hd': 1,
+            'adult': 1,
+            'v': '5.131'
+        }
+        response = requests.get(search_url, params=params)
+        data = response.json()
+        
+        if 'error' in data:
+            return jsonify({'error': data['error']['error_msg']}), 500
+        
+        videos = []
+        for item in data.get('response', {}).get('items', []):
+            owner_id = item['owner_id']
+            video_id = item['id']
+            
+            # Получаем прямую MP4 ссылку
+            video_url = f"https://api.vk.com/method/video.get"
+            video_params = {
+                'videos': f"{owner_id}_{video_id}",
+                'access_token': VK_ACCESS_TOKEN,
+                'v': '5.131'
+            }
+            video_response = requests.get(video_url, params=video_params)
+            video_data = video_response.json()
+            
+            files = video_data.get('response', {}).get('items', [{}])[0].get('files', {})
+            
+            # Берём лучшее качество
+            mp4_url = files.get('mp4_720') or files.get('mp4_480') or files.get('mp4_360') or files.get('mp4_240')
+            
+            if mp4_url:
+                videos.append({
+                    'title': item['title'],
+                    'video_url': mp4_url,
+                    'duration': item.get('duration', 0),
+                    'views': item.get('views', 0)
+                })
+        
+        return jsonify({'results': videos})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # ==================== GOOGLE LOGIN ====================
 
@@ -523,4 +560,3 @@ def on_change_video(data):
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
-        
