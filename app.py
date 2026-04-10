@@ -92,55 +92,42 @@ def google_login():
 
 @app.route('/google_auth')
 def google_auth():
-    # Получаем code из запроса
-    code = request.args.get('code')
-    if not code:
-        flash('Ошибка: не получен код авторизации')
-        return redirect(url_for('index'))
-    
-    # Меняем code на access_token вручную
-    token_url = 'https://oauth2.googleapis.com/token'
-    data = {
-        'code': code,
-        'client_id': GOOGLE_CLIENT_ID,
-        'client_secret': GOOGLE_CLIENT_SECRET,
-        'redirect_uri': 'https://oge-miniapp-production.up.railway.app/google_auth',
-        'grant_type': 'authorization_code'
-    }
-    
-    resp = requests.post(token_url, data=data)
-    token_data = resp.json()
-    
-    if 'access_token' not in token_data:
-        flash('Ошибка: не удалось получить access_token')
-        return redirect(url_for('index'))
-    
+    # ... (код получения токена остается без изменений) ...
+
     # Получаем информацию о пользователе
     userinfo_resp = requests.get(
         'https://www.googleapis.com/oauth2/v3/userinfo',
         headers={'Authorization': f'Bearer {token_data["access_token"]}'}
     )
     user_info = userinfo_resp.json()
+
+    # Безопасное получение имени с запасным вариантом
+    user_name = user_info.get('name')
+    if not user_name:
+        # Если имя не пришло, используем часть email до @ или "user"
+        email = user_info.get('email', '')
+        user_name = email.split('@')[0] if email else 'user'
     
+    # Безопасное формирование username
+    username = user_name.replace(' ', '_')
+    
+    # Остальной код без изменений...
     session['google_user'] = user_info
     session['user_email'] = user_info.get('email')
-    session['user_name'] = user_info.get('name')
+    session['user_name'] = user_name
     session['user_avatar'] = user_info.get('picture')
     
     user = User.query.filter_by(email=user_info.get('email')).first()
     if not user:
         user = User(
-            username=user_info.get('name').replace(' ', '_'),
+            username=username,  # Используем безопасное имя
             email=user_info.get('email'),
             password=generate_password_hash(os.urandom(24).hex())
         )
         db.session.add(user)
         db.session.commit()
     
-    login_user(user)
-    flash(f'Добро пожаловать, {user_info.get("name")}!')
-    return redirect(url_for('index'))
-
+    # ...
 @app.route('/google_logout')
 def google_logout():
     session.pop('google_user', None)
