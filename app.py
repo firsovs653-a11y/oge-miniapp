@@ -27,57 +27,9 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 
-# ==================== YOUTUBE API ====================
-
-YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
-
 # ==================== VK API ====================
 
 VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
-
-# ==================== YOUTUBE SEARCH ====================
-
-@app.route('/api/search_youtube', methods=['POST'])
-@login_required
-def search_youtube():
-    data = request.get_json()
-    query = data.get('query', '').strip()
-    
-    if not query:
-        return jsonify({'error': 'Empty query'}), 400
-    
-    if not YOUTUBE_API_KEY:
-        return jsonify({'error': 'YouTube API key not configured'}), 500
-    
-    try:
-        url = "https://www.googleapis.com/youtube/v3/search"
-        params = {
-            'part': 'snippet',
-            'q': query,
-            'type': 'video',
-            'maxResults': 10,
-            'key': YOUTUBE_API_KEY
-        }
-        response = requests.get(url, params=params)
-        data = response.json()
-        
-        if 'error' in data:
-            return jsonify({'error': data['error']['message']}), 500
-        
-        videos = []
-        for item in data.get('items', []):
-            video_id = item['id']['videoId']
-            videos.append({
-                'title': item['snippet']['title'],
-                'video_id': video_id,
-                'channel': item['snippet']['channelTitle'],
-                'thumbnail': item['snippet']['thumbnails']['default']['url']
-            })
-        
-        return jsonify({'results': videos})
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 # ==================== VK VIDEO SEARCH ====================
 
