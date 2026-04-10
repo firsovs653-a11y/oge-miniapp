@@ -625,6 +625,122 @@ button[type="submit"] {
         font-size: 13px !important;
     }
 }
+/* ========== КОНТУРНЫЕ ПРОЗРАЧНЫЕ КНОПКИ ========== */
+
+/* Все кнопки - контурные */
+.btn,
+button,
+a.btn,
+form .btn,
+.form-card .btn,
+.card .btn,
+[class*="btn"] {
+    background: transparent !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    padding: 10px 20px !important;
+    border-radius: 30px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    transition: all 0.25s !important;
+    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Обычные кнопки - белый контур */
+.btn,
+.btn-secondary,
+.btn-outline-secondary,
+.nav-links .btn-outline {
+    color: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    background: transparent !important;
+}
+
+.btn:hover,
+.btn-secondary:hover,
+.nav-links .btn-outline:hover {
+    border-color: rgba(255, 255, 255, 0.6) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    transform: scale(1.02) !important;
+}
+
+/* Золотые кнопки - жёлтый контур */
+.btn-primary,
+.btn-warning,
+.btn-add,
+.btn-vk,
+.btn-load,
+.btn-play,
+.btn-send,
+button[type="submit"] {
+    color: #f5c518 !important;
+    border: 1px solid rgba(245, 197, 24, 0.5) !important;
+    background: transparent !important;
+}
+
+.btn-primary:hover,
+.btn-add:hover,
+.btn-vk:hover,
+.btn-load:hover,
+.btn-play:hover,
+.btn-send:hover,
+button[type="submit"]:hover {
+    border-color: #f5c518 !important;
+    background: rgba(245, 197, 24, 0.08) !important;
+    box-shadow: 0 0 15px rgba(245, 197, 24, 0.15) !important;
+}
+
+/* Зелёные кнопки - зелёный контур */
+.btn-success,
+.btn-accept {
+    color: #5cff85 !important;
+    border: 1px solid rgba(92, 255, 133, 0.5) !important;
+    background: transparent !important;
+}
+
+.btn-success:hover,
+.btn-accept:hover {
+    border-color: #5cff85 !important;
+    background: rgba(92, 255, 133, 0.08) !important;
+    box-shadow: 0 0 15px rgba(92, 255, 133, 0.15) !important;
+}
+
+/* Красные кнопки - красный контур */
+.btn-danger,
+.btn-reject,
+.btn-leave,
+.btn-pause {
+    color: #ff6b6b !important;
+    border: 1px solid rgba(255, 107, 107, 0.5) !important;
+    background: transparent !important;
+}
+
+.btn-danger:hover,
+.btn-reject:hover,
+.btn-leave:hover,
+.btn-pause:hover {
+    border-color: #ff6b6b !important;
+    background: rgba(255, 107, 107, 0.08) !important;
+    box-shadow: 0 0 15px rgba(255, 107, 107, 0.15) !important;
+}
+
+/* Синие кнопки - синий контур */
+.btn-info,
+.btn-search {
+    color: #4da6ff !important;
+    border: 1px solid rgba(77, 166, 255, 0.5) !important;
+    background: transparent !important;
+}
+
+.btn-info:hover,
+.btn-search:hover {
+    border-color: #4da6ff !important;
+    background: rgba(77, 166, 255, 0.08) !important;
+    box-shadow: 0 0 15px rgba(77, 166, 255, 0.15) !important;
+}
     </style>
 </head>
 <body>
