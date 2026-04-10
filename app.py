@@ -2,6 +2,7 @@ import re
 import random
 import string
 import os
+import secrets
 import requests
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -82,15 +83,25 @@ def search_youtube():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ==================== GOOGLE LOGIN ====================
+# ==================== GOOGLE LOGIN (FIXED STATE) ====================
 
 @app.route('/google_login')
 def google_login():
+    state = secrets.token_urlsafe(32)
+    session['oauth_state'] = state
     redirect_uri = 'https://oge-miniapp-production.up.railway.app/google_auth'
-    return google.authorize_redirect(redirect_uri)
+    return google.authorize_redirect(redirect_uri, state=state)
 
 @app.route('/google_auth')
 def google_auth():
+    # Проверяем state
+    saved_state = session.pop('oauth_state', None)
+    request_state = request.args.get('state')
+    
+    if saved_state != request_state:
+        flash('Ошибка авторизации: некорректный state')
+        return redirect(url_for('index'))
+    
     token = google.authorize_access_token()
     
     resp = requests.get(
