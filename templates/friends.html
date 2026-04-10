@@ -3,37 +3,211 @@
 {% block title %}Мои друзья{% endblock %}
 
 {% block content %}
-<h1>👥 Мои друзья</h1>
+<div class="friends-container">
+    <div class="friends-header">
+        <h1>👥 Мои друзья</h1>
+        <a href="{{ url_for('search') }}" class="btn-search">🔍 Найти друзей</a>
+    </div>
 
-<div class="form-card">
-    <h3>Входящие заявки</h3>
-    {% if incoming_requests %}
-        {% for req in incoming_requests %}
-            <div style="padding: 10px; border-bottom: 1px solid #eee;">
-                {{ req.from_user.username }}
-                <a href="{{ url_for('accept_request', request_id=req.id) }}" class="btn" style="display: inline-block; width: auto; margin-left: 10px;">✅ Принять</a>
-                <a href="{{ url_for('reject_request', request_id=req.id) }}" class="btn" style="display: inline-block; width: auto; background: #dc3545;">❌ Отклонить</a>
+    <div class="card">
+        <h3>📨 Входящие заявки</h3>
+        {% if incoming_requests %}
+            {% for req in incoming_requests %}
+                <div class="request-item">
+                    <span class="request-username">{{ req.from_user.username }}</span>
+                    <div class="request-actions">
+                        <a href="{{ url_for('accept_request', request_id=req.id) }}" class="btn-accept">✅ Принять</a>
+                        <a href="{{ url_for('reject_request', request_id=req.id) }}" class="btn-reject">❌ Отклонить</a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty-text">Нет новых заявок</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h3>👤 Список друзей</h3>
+        {% if current_user.friends.count() > 0 %}
+            <div class="friends-grid">
+                {% for friend in current_user.friends %}
+                    <a href="{{ url_for('profile', username=friend.username) }}" class="friend-card">
+                        <span class="friend-avatar">👤</span>
+                        <span class="friend-name">{{ friend.username }}</span>
+                    </a>
+                {% endfor %}
             </div>
-        {% endfor %}
-    {% else %}
-        <p>Нет новых заявок</p>
-    {% endif %}
-</div>
-
-<div class="form-card" style="margin-top: 20px;">
-    <h3>Список друзей</h3>
-    {% if current_user.friends.count() > 0 %}
-        {% for friend in current_user.friends %}
-            <div style="padding: 10px; border-bottom: 1px solid #eee;">
-                <a href="{{ url_for('profile', username=friend.username) }}">{{ friend.username }}</a>
+        {% else %}
+            <p class="empty-text">У вас пока нет друзей</p>
+            <div class="empty-actions">
+                <a href="{{ url_for('search') }}" class="btn">🔍 Найти друзей</a>
             </div>
-        {% endfor %}
-    {% else %}
-        <p>У вас пока нет друзей</p>
-    {% endif %}
+        {% endif %}
+    </div>
 </div>
 
-<div style="text-align: center; margin-top: 20px;">
-    <a href="{{ url_for('search') }}" class="btn" style="background: #28a745;">🔍 Найти друзей</a>
-</div>
+<style>
+    .friends-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .friends-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .friends-header h1 {
+        color: #fff;
+        margin: 0;
+        font-size: 32px;
+    }
+    
+    .btn-search {
+        background: #f5c518;
+        color: #000;
+        padding: 12px 24px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 16px;
+        transition: background 0.2s;
+    }
+    
+    .btn-search:hover {
+        background: #ffd700;
+        text-decoration: none;
+    }
+    
+    .card {
+        background: #1a1a1a;
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    
+    .card h3 {
+        color: #fff;
+        margin: 0 0 20px 0;
+        font-size: 18px;
+    }
+    
+    .request-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #333;
+    }
+    
+    .request-item:last-child {
+        border-bottom: none;
+    }
+    
+    .request-username {
+        color: #fff;
+        font-size: 16px;
+        font-weight: 500;
+    }
+    
+    .request-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn-accept, .btn-reject {
+        padding: 8px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .btn-accept {
+        background: #28a745;
+        color: white;
+    }
+    
+    .btn-accept:hover {
+        background: #34ce57;
+        text-decoration: none;
+    }
+    
+    .btn-reject {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .btn-reject:hover {
+        background: #ff4757;
+        text-decoration: none;
+    }
+    
+    .friends-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+    }
+    
+    .friend-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px 12px;
+        background: #2a2a2a;
+        border-radius: 12px;
+        text-decoration: none;
+        transition: transform 0.2s, background 0.2s;
+    }
+    
+    .friend-card:hover {
+        background: #333;
+        transform: translateY(-2px);
+        text-decoration: none;
+    }
+    
+    .friend-avatar {
+        font-size: 40px;
+        margin-bottom: 8px;
+    }
+    
+    .friend-name {
+        color: #fff;
+        font-size: 14px;
+        font-weight: 500;
+        text-align: center;
+    }
+    
+    .empty-text {
+        color: #888;
+        text-align: center;
+        padding: 20px;
+        font-size: 15px;
+    }
+    
+    .empty-actions {
+        text-align: center;
+        margin-top: 15px;
+    }
+    
+    .btn {
+        background: #f5c518;
+        color: #000;
+        padding: 12px 24px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-block;
+        transition: background 0.2s;
+    }
+    
+    .btn:hover {
+        background: #ffd700;
+        text-decoration: none;
+    }
+</style>
 {% endblock %}
