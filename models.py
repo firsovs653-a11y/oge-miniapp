@@ -76,3 +76,14 @@ class RoomInvite(db.Model):
     room = db.relationship('Room', backref='invites')
     from_user = db.relationship('User', foreign_keys=[from_user_id])
     to_user = db.relationship('User', foreign_keys=[to_user_id])
+# В конец файла models.py добавить:
+
+class ChatMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.Integer, db.ForeignKey('room.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    message = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='messages')
+    room = db.relationship('Room', backref='messages')
