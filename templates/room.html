@@ -127,34 +127,19 @@
     }
     
     function loginToYouTube() {
-    const redirectUri = window.location.origin + '/google_auth';
-    const authUrl = 'https://accounts.google.com/o/oauth2/auth' +
-        '?client_id=' + GOOGLE_CLIENT_ID +
-        '&redirect_uri=' + encodeURIComponent(redirectUri) +
-        '&response_type=code' +
-        '&scope=https://www.googleapis.com/auth/youtube.readonly' +
-        '&access_type=online';
-    
-    window.open(authUrl, 'google-auth', 'width=500,height=600');
-    
-    const checkInterval = setInterval(() => {
-        if (authWindow.closed) {
-            clearInterval(checkInterval);
-            if (currentVideoId && player && player.loadVideoById) {
-                player.loadVideoById(currentVideoId);
-            }
-            closeAuthModal();
-        }
-    }, 500);
-}
+        const redirectUri = window.location.origin + '/google_auth';
+        const authUrl = 'https://accounts.google.com/o/oauth2/auth' +
+            '?client_id=' + GOOGLE_CLIENT_ID +
+            '&redirect_uri=' + encodeURIComponent(redirectUri) +
+            '&response_type=code' +
+            '&scope=https://www.googleapis.com/auth/youtube.readonly' +
+            '&access_type=online';
         
         const authWindow = window.open(authUrl, 'google-auth', 'width=500,height=600');
         
-        // Следим за закрытием окна
         const checkInterval = setInterval(() => {
             if (authWindow.closed) {
                 clearInterval(checkInterval);
-                // Перезагружаем текущее видео
                 if (currentVideoId && player && player.loadVideoById) {
                     player.loadVideoById(currentVideoId);
                 }
