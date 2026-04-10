@@ -1,24 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}{{ room.name }}{% endblock %}
+
+{% block content %}
+<h1>🎬 {{ room.name }}</h1>
+
+<div class="form-card">
+    <p><strong>Код комнаты:</strong> {{ room.code }}</p>
+    <p><strong>Создатель:</strong> {{ room.creator.username }}</p>
+    <p><strong>Описание:</strong> {{ room.description or 'Нет описания' }}</p>
+    
+    <h3>👥 Участники ({{ members|length }})</h3>
+    <ul id="members-list">
+        {% for member in members %}
+        <li>{{ member.user.username }}</li>
+        {% endfor %}
+    </ul>
+    
+    <hr>
+    
+    <div style="margin-top: 20px;">
+        <h3>🎥 Синхропросмотр</h3>
+        
+        <!-- Поиск VK -->
+        <div style="margin-bottom: 10px;">
+            <input type="text" id="search-query" placeholder="🔍 Найти видео VK..." style="width: 60%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
+            <button onclick="searchVK()" class="btn" style="width: 35%; background: #4a76a8;">🎬 VK Видео</button>
+        </div>
+        <div id="search-results" style="margin-bottom: 10px; display: none; background: white; border-radius: 12px; padding: 10px; max-height: 300px; overflow-y: auto;"></div>
+        
+        <!-- Ручной ввод ссылки -->
+        <div style="margin-bottom: 10px;">
+            <input type="text" id="video-url" placeholder="Или вставь прямую ссылку на MP4" style="width: 70%; padding: 10px; border-radius: 12px; border: 1px solid #ddd;">
+            <button onclick="changeVideo()" class="btn" style="width: 25%;">Загрузить</button>
+        </div>
+        
+        <!-- Видеоплеер -->
+        <video id="video-player" width="100%" controls style="border-radius: 16px; background: black;">
+            <source id="video-source" src="" type="video/mp4">
+            Ваш браузер не поддерживает видео
+        </video>
+        
+        <div style="margin-top: 10px; display: flex; gap: 10px;">
+            <button onclick="playVideo()" class="btn" style="flex: 1;">▶ Play</button>
+            <button onclick="pauseVideo()" class="btn" style="flex: 1;">⏸ Pause</button>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
     const socket = io(window.location.origin, { transports: ['websocket'] });
     const roomId = {{ room.id }};
     const video = document.getElementById('video-player');
     
-    let isRemoteAction = false; // Флаг: действие инициировано удаленно
-    let actionTimeout = null;   // Таймаут для сброса флага
-
-    // Функция безопасной установки флага
-    function setRemoteAction() {
-        if (actionTimeout) clearTimeout(actionTimeout);
-        isRemoteAction = true;
-        actionTimeout = setTimeout(() => {
-            isRemoteAction = false;
-        }, 500); // Блокируем локальные события на 500мс после удаленной команды
-    }
+    let isRemoteAction = false;
+    let remoteActionTimer = null;
     
     socket.emit('join', { room_id: roomId });
     
-    // ========== ЛОКАЛЬНОЕ УПРАВЛЕНИЕ ==========
+    // ========== УПРАВЛЕНИЕ ==========
     function playVideo() {
         video.play();
         socket.emit('play', { room_id: roomId, current_time: video.currentTime });
@@ -39,7 +80,7 @@
         }
     }
     
-    // ========== ПЕРЕХВАТ СОБЫТИЙ ПЛЕЕРА (только если не удаленное действие) ==========
+    // ========== ПЕРЕХВАТ СОБЫТИЙ ПЛЕЕРА ==========
     video.addEventListener('play', () => {
         if (!isRemoteAction) {
             socket.emit('play', { room_id: roomId, current_time: video.currentTime });
@@ -58,41 +99,55 @@
         }
     });
     
-    // ========== СИНХРОНИЗАЦИЯ (ПОЛУЧЕНИЕ КОМАНД) ==========
+    // ========== СИНХРОНИЗАЦИЯ ==========
     socket.on('play_sync', (data) => {
-        setRemoteAction();
-        // Синхронизируем время, только если разница больше 0.3 сек (чтобы не дергать плеер лишний раз)
-        if (Math.abs(video.currentTime - data.current_time) > 0.3) {
+        isRemoteAction = true;
+        clearTimeout(remoteActionTimer);
+        
+        if (Math.abs(video.currentTime - data.current_time) > 0.5) {
             video.currentTime = data.current_time;
         }
-        video.play().catch(e => console.log('Play prevented:', e));
+        video.play().catch(e => console.log('Play error:', e));
+        
+        remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
     });
     
     socket.on('pause_sync', (data) => {
-        setRemoteAction();
+        isRemoteAction = true;
+        clearTimeout(remoteActionTimer);
+        
         video.currentTime = data.current_time;
         video.pause();
+        
+        remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
     });
     
     socket.on('seek_sync', (data) => {
-        setRemoteAction();
+        isRemoteAction = true;
+        clearTimeout(remoteActionTimer);
+        
         video.currentTime = data.current_time;
         
-        // ВАЖНО: Если видео остановилось из-за буферизации при перемотке,
-        // но ведущий продолжает смотреть, нужно попробовать запустить его снова.
-        // Можно попытаться играть, если на сервере есть флаг is_playing.
-        // Пока просто игнорируем, так как в вашем протоколе нет флага is_playing в seek_sync.
-        // Но если видео вдруг встало, это место для фикса.
+        // Если видео было на паузе, но ведущий перематывает - пробуем играть
+        if (video.paused) {
+            video.play().catch(e => {});
+        }
+        
+        remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
     });
     
     socket.on('video_change_sync', (data) => {
-        setRemoteAction();
+        isRemoteAction = true;
+        clearTimeout(remoteActionTimer);
+        
         video.src = data.video_url;
         video.load();
-        video.play().catch(e => console.log('Autoplay blocked, waiting for user interaction'));
+        video.play().catch(e => console.log('Autoplay blocked'));
+        
+        remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
     });
     
-    // ========== ПОИСК VK (без изменений) ==========
+    // ========== ПОИСК VK ==========
     window.searchVK = function() {
         const query = document.getElementById('search-query').value;
         if (!query.trim()) return;
@@ -138,3 +193,4 @@
         socket.emit('join', { room_id: roomId });
     });
 </script>
+{% endblock %}
