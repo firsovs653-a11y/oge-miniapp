@@ -208,11 +208,12 @@
     });
     
     socket.on('seek_sync', (data) => {
-        if (isLocalAction) return;
-        isLocalAction = true;
-        video.currentTime = data.current_time;
-        setTimeout(() => { isLocalAction = false; }, 200);
-    });
+    if (isLocalAction) return;
+    isLocalAction = true;
+    console.log('seek_sync received', data.current_time);
+    video.currentTime = data.current_time;
+    setTimeout(() => { isLocalAction = false; }, 200);
+});
     
     socket.on('video_change_sync', (data) => {
         if (isLocalAction) return;
