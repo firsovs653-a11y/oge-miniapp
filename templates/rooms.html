@@ -1,54 +1,302 @@
 {% extends "base.html" %}
 
-{% block title %}Мои комнаты{% endblock %}
+{% block title %}Мои комнаты | FIRSOV{% endblock %}
 
 {% block content %}
-<h1>🎬 Мои комнаты</h1>
-
-<div style="margin-bottom: 20px;">
-    <a href="{{ url_for('create_room') }}" class="btn" style="background: #28a745;">➕ Создать комнату</a>
-</div>
-
-<!-- Приглашения -->
-{% if invites %}
-<div class="form-card" style="margin-bottom: 20px;">
-    <h3>📨 Приглашения в комнаты</h3>
-    {% for invite in invites %}
-    <div style="padding: 10px; border-bottom: 1px solid #eee;">
-        <strong>{{ invite.room.name }}</strong> — пригласил {{ invite.from_user.username }}
-        <a href="{{ url_for('accept_room_invite', invite_id=invite.id) }}" class="btn" style="display: inline-block; width: auto; margin-left: 10px;">✅ Принять</a>
-        <a href="{{ url_for('reject_room_invite', invite_id=invite.id) }}" class="btn" style="display: inline-block; width: auto; background: #dc3545;">❌ Отклонить</a>
+<div class="rooms-container">
+    <div class="rooms-header">
+        <h1>🎬 Мои комнаты</h1>
+        <a href="{{ url_for('create_room') }}" class="btn btn-primary">➕ Создать комнату</a>
     </div>
-    {% endfor %}
-</div>
-{% endif %}
 
-<!-- Мои комнаты -->
-<div class="form-card">
-    <h3>Мои комнаты</h3>
-    {% if rooms %}
-        {% for room in rooms %}
-        <div style="padding: 15px; border-bottom: 1px solid #eee;">
-            <div style="font-weight: 600;">{{ room.name }}</div>
-            <div style="font-size: 14px; color: #666;">{{ room.description or 'Без описания' }}</div>
-            <div style="font-size: 12px; color: #999; margin-top: 5px;">Код: {{ room.code }}</div>
-            <div style="margin-top: 10px;">
-                <a href="{{ url_for('room', room_id=room.id) }}" class="btn" style="display: inline-block; width: auto;">🎬 Войти</a>
-                <a href="{{ url_for('invite_to_room', room_id=room.id) }}" class="btn" style="display: inline-block; width: auto; background: #007aff;">👥 Пригласить друзей</a>
-                <a href="{{ url_for('leave_room_route', room_id=room.id) }}" class="btn" style="display: inline-block; width: auto; background: #dc3545;">🚪 Покинуть</a>
+    <!-- Приглашения -->
+    {% if invites %}
+    <div class="glass-card invites-card">
+        <h3>📨 Приглашения в комнаты</h3>
+        {% for invite in invites %}
+        <div class="invite-item">
+            <div class="invite-info">
+                <strong>{{ invite.room.name }}</strong>
+                <span>от {{ invite.from_user.username }}</span>
+            </div>
+            <div class="invite-actions">
+                <a href="{{ url_for('accept_room_invite', invite_id=invite.id) }}" class="btn btn-success btn-sm">✓ Принять</a>
+                <a href="{{ url_for('reject_room_invite', invite_id=invite.id) }}" class="btn btn-danger btn-sm">✕ Отклонить</a>
             </div>
         </div>
         {% endfor %}
-    {% else %}
-        <p>У вас пока нет комнат. Создайте или присоединитесь по коду!</p>
+    </div>
     {% endif %}
+
+    <!-- Список комнат -->
+    <div class="glass-card">
+        <h3>🏠 Мои комнаты</h3>
+        {% if rooms %}
+            <div class="rooms-list">
+                {% for room in rooms %}
+                <div class="room-item">
+                    <div class="room-info">
+                        <div class="room-name">
+                            {{ room.name }}
+                            {% if room.created_by == current_user.id %}
+                                <span class="badge creator-badge">👑 Создатель</span>
+                            {% else %}
+                                <span class="badge member-badge">👤 Участник</span>
+                            {% endif %}
+                        </div>
+                        <div class="room-desc">{{ room.description or 'Без описания' }}</div>
+                        <div class="room-code">🔑 Код: {{ room.code }}</div>
+                    </div>
+                    <div class="room-actions">
+                        <a href="{{ url_for('room', room_id=room.id) }}" class="btn btn-primary btn-sm">🎬 Войти</a>
+                        <a href="{{ url_for('invite_to_room', room_id=room.id) }}" class="btn btn-info btn-sm">👥 Пригласить</a>
+                        
+                        {% if room.created_by == current_user.id %}
+                            <!-- Кнопка УДАЛИТЬ для создателя -->
+                            <a href="{{ url_for('delete_room', room_id=room.id) }}" 
+                               class="btn btn-danger btn-sm" 
+                               onclick="return confirm('Вы уверены? Комната будет удалена навсегда.')">
+                                🗑️ Удалить
+                            </a>
+                        {% else %}
+                            <!-- Кнопка ПОКИНУТЬ для участника -->
+                            <a href="{{ url_for('leave_room_route', room_id=room.id) }}" 
+                               class="btn btn-leave btn-sm"
+                               onclick="return confirm('Покинуть комнату?')">
+                                🚪 Покинуть
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-text">У вас пока нет комнат. Создайте новую или присоединитесь по коду!</p>
+        {% endif %}
+    </div>
+
+    <!-- Присоединиться по коду -->
+    <div class="glass-card join-card">
+        <h3>🔗 Присоединиться по коду</h3>
+        <form method="POST" action="{{ url_for('join_room_code') }}" class="join-form">
+            <input type="text" name="code" placeholder="Введите код комнаты" required class="glass-input">
+            <button type="submit" class="btn btn-primary">Присоединиться</button>
+        </form>
+    </div>
 </div>
 
-<div class="form-card" style="margin-top: 20px;">
-    <h3>🔗 Присоединиться по коду</h3>
-    <form method="POST" action="{{ url_for('join_room_code') }}">
-        <input type="text" name="code" placeholder="Введите код комнаты" required>
-        <button type="submit" class="btn">Присоединиться</button>
-    </form>
-</div>
+<style>
+    .rooms-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .rooms-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .rooms-header h1 {
+        margin: 0;
+        font-size: 32px;
+        color: rgba(255, 255, 255, 0.95);
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    .glass-card {
+        background: rgba(20, 20, 35, 0.25);
+        backdrop-filter: blur(25px) saturate(200%);
+        -webkit-backdrop-filter: blur(25px) saturate(200%);
+        border-radius: 24px;
+        padding: 24px;
+        border: 0.5px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        margin-bottom: 20px;
+    }
+    
+    .glass-card h3 {
+        margin: 0 0 20px 0;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 18px;
+        font-weight: 500;
+    }
+    
+    .invites-card {
+        margin-bottom: 20px;
+    }
+    
+    .invite-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
+    }
+    
+    .invite-item:last-child {
+        border-bottom: none;
+    }
+    
+    .invite-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .invite-info strong {
+        color: #f5c518;
+        font-size: 16px;
+    }
+    
+    .invite-info span {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 13px;
+    }
+    
+    .invite-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .btn-sm {
+        padding: 6px 14px !important;
+        font-size: 13px !important;
+    }
+    
+    .rooms-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .room-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 16px;
+        border: 0.5px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.25s;
+    }
+    
+    .room-item:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(245, 197, 24, 0.15);
+    }
+    
+    .room-info {
+        flex: 1;
+    }
+    
+    .room-name {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 16px;
+        margin-bottom: 6px;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+    
+    .creator-badge {
+        background: rgba(245, 197, 24, 0.15);
+        color: #f5c518;
+        border: 0.5px solid rgba(245, 197, 24, 0.3);
+    }
+    
+    .member-badge {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.7);
+        border: 0.5px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .room-desc {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 13px;
+        margin-bottom: 4px;
+    }
+    
+    .room-code {
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 12px;
+    }
+    
+    .room-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    
+    .btn-leave {
+        color: #ff6b6b !important;
+        border: 1px solid rgba(255, 107, 107, 0.5) !important;
+        background: transparent !important;
+    }
+    
+    .btn-leave:hover {
+        border-color: #ff6b6b !important;
+        background: rgba(255, 107, 107, 0.08) !important;
+    }
+    
+    .join-card {
+        margin-top: 20px;
+    }
+    
+    .join-form {
+        display: flex;
+        gap: 12px;
+    }
+    
+    .join-form input {
+        flex: 1;
+        margin: 0;
+    }
+    
+    .empty-text {
+        color: rgba(255, 255, 255, 0.4);
+        text-align: center;
+        padding: 40px;
+        font-size: 15px;
+    }
+    
+    @media (max-width: 700px) {
+        .room-item {
+            flex-direction: column;
+            gap: 16px;
+            align-items: flex-start;
+        }
+        
+        .room-actions {
+            width: 100%;
+            justify-content: stretch;
+        }
+        
+        .room-actions .btn {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .join-form {
+            flex-direction: column;
+        }
+        
+        .invite-item {
+            flex-direction: column;
+            gap: 12px;
+            align-items: flex-start;
+        }
+    }
+</style>
 {% endblock %}
