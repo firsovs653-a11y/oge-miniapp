@@ -1,27 +1,205 @@
 {% extends "base.html" %}
 
-{% block title %}Поиск{% endblock %}
+{% block title %}Поиск | FIRSOV{% endblock %}
 
 {% block content %}
-<h1>🔍 Поиск пользователей</h1>
-
-<div class="form-card">
-    <form method="GET">
-        <input type="text" name="q" placeholder="Введите имя пользователя..." value="{{ query }}">
-        <button type="submit" class="btn">Искать</button>
-    </form>
+<div class="search-container">
+    <h1>🔍 Поиск пользователей</h1>
+    
+    <div class="glass-card search-card">
+        <form method="GET" class="search-form">
+            <input type="text" name="q" placeholder="Введите имя пользователя..." value="{{ query }}" autocomplete="off">
+            <button type="submit" class="btn btn-primary">🔍 Искать</button>
+        </form>
+    </div>
+    
+    {% if query %}
+        <div class="glass-card results-card">
+            <div class="results-header">
+                <h3>Результаты по запросу "{{ query }}"</h3>
+                <span class="badge">{{ users|length }}</span>
+            </div>
+            
+            {% if users %}
+                <div class="users-list">
+                    {% for user in users %}
+                        <a href="{{ url_for('profile', username=user.username) }}" class="user-item">
+                            <span class="user-avatar">👤</span>
+                            <span class="user-name">{{ user.username }}</span>
+                            <span class="user-arrow">→</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-text">😔 Пользователи не найдены</p>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="glass-card empty-search">
+            <p class="hint-text">🔎 Введите имя пользователя для поиска</p>
+        </div>
+    {% endif %}
 </div>
 
-{% if users %}
-    <div class="form-card" style="margin-top: 20px;">
-        <h3>Результаты поиска:</h3>
-        {% for user in users %}
-            <div style="padding: 10px; border-bottom: 1px solid #eee;">
-                <a href="{{ url_for('profile', username=user.username) }}" style="font-weight: 600;">{{ user.username }}</a>
-            </div>
-        {% endfor %}
-    </div>
-{% elif query %}
-    <p style="text-align: center; margin-top: 20px;">Пользователи не найдены</p>
-{% endif %}
+<style>
+    .search-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        color: rgba(255, 255, 255, 0.95);
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        font-size: 32px;
+    }
+    
+    .glass-card {
+        background: rgba(20, 20, 35, 0.25);
+        backdrop-filter: blur(25px) saturate(200%);
+        -webkit-backdrop-filter: blur(25px) saturate(200%);
+        border-radius: 24px;
+        padding: 24px;
+        border: 0.5px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    }
+    
+    .search-card {
+        margin-bottom: 20px;
+    }
+    
+    .search-form {
+        display: flex;
+        gap: 12px;
+    }
+    
+    .search-form input {
+        flex: 1;
+        padding: 14px 18px;
+        background: rgba(15, 15, 25, 0.4);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 0.5px solid rgba(255, 255, 255, 0.1);
+        border-radius: 40px;
+        color: #fff;
+        font-size: 15px;
+        outline: none;
+        transition: all 0.25s;
+    }
+    
+    .search-form input:focus {
+        border-color: rgba(245, 197, 24, 0.5);
+        box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.1);
+    }
+    
+    .search-form input::placeholder {
+        color: rgba(255, 255, 255, 0.4);
+    }
+    
+    .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .results-header h3 {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 18px;
+        font-weight: 500;
+        text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+    }
+    
+    .badge {
+        background: rgba(245, 197, 24, 0.15);
+        border: 0.5px solid rgba(245, 197, 24, 0.3);
+        color: #f5c518;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 500;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+    
+    .users-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .user-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 16px;
+        text-decoration: none;
+        transition: all 0.25s;
+        border: 0.5px solid transparent;
+    }
+    
+    .user-item:hover {
+        background: rgba(245, 197, 24, 0.06);
+        border-color: rgba(245, 197, 24, 0.2);
+        text-decoration: none;
+    }
+    
+    .user-avatar {
+        font-size: 28px;
+        opacity: 0.8;
+    }
+    
+    .user-name {
+        flex: 1;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 16px;
+        font-weight: 500;
+        text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+    }
+    
+    .user-arrow {
+        color: rgba(255, 255, 255, 0.3);
+        font-size: 18px;
+        transition: all 0.25s;
+    }
+    
+    .user-item:hover .user-arrow {
+        color: #f5c518;
+        transform: translateX(4px);
+    }
+    
+    .empty-text {
+        color: rgba(255, 255, 255, 0.5);
+        text-align: center;
+        padding: 40px;
+        font-size: 15px;
+        text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    .empty-search {
+        text-align: center;
+        padding: 40px;
+    }
+    
+    .hint-text {
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 16px;
+        margin: 0;
+        text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    @media (max-width: 600px) {
+        .search-form {
+            flex-direction: column;
+        }
+        
+        .search-form button {
+            width: 100%;
+        }
+    }
+</style>
 {% endblock %}
