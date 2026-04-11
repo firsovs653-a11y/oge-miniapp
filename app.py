@@ -24,6 +24,25 @@ login_manager.login_view = 'login'
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 @socketio.on('typing')
+@app.route('/room/delete/<int:room_id>')
+@login_required
+def delete_room(room_id):
+    room = Room.query.get_or_404(room_id)
+    
+    # Только создатель может удалить комнату
+    if room.created_by != current_user.id:
+        flash('Только создатель может удалить комнату')
+        return redirect(url_for('rooms'))
+    
+    # Удаляем всё связанное с комнатой
+    ChatMessage.query.filter_by(room_id=room_id).delete()
+    RoomInvite.query.filter_by(room_id=room_id).delete()
+    RoomMember.query.filter_by(room_id=room_id).delete()
+    db.session.delete(room)
+    db.session.commit()
+    
+    flash(f'Комната "{room.name}" удалена')
+    return redirect(url_for('rooms'))
 def on_typing(data):
     room = str(data['room_id'])
     emit('user_typing', {'username': current_user.username}, room=room, include_self=False)
