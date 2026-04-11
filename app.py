@@ -114,8 +114,16 @@ def friends():
 @app.route('/search')
 @login_required
 def search():
-    q = request.args.get('q', '')
-    users = User.query.filter(User.username.contains(q), User.id != current_user.id).all()
+    q = request.args.get('q', '').strip()
+    users = []
+    
+    # Показываем результаты ТОЛЬКО если есть запрос
+    if q:
+        users = User.query.filter(
+            User.username.contains(q), 
+            User.id != current_user.id
+        ).all()
+    
     return render_template('search.html', users=users, query=q)
 
 @app.route('/profile/<username>')
