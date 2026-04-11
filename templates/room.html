@@ -121,17 +121,10 @@
     }
     
     @keyframes containerFadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
-    /* Анимация появления */
     .animate-in {
         animation: slideInLeft 0.5s ease-out;
     }
@@ -141,28 +134,15 @@
     }
     
     @keyframes slideInLeft {
-        from {
-            opacity: 0;
-            transform: translateX(-30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
+        from { opacity: 0; transform: translateX(-30px); }
+        to { opacity: 1; transform: translateX(0); }
     }
     
     @keyframes slideInRight {
-        from {
-            opacity: 0;
-            transform: translateX(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
+        from { opacity: 0; transform: translateX(30px); }
+        to { opacity: 1; transform: translateX(0); }
     }
     
-    /* Стеклянные карточки */
     .glass-card {
         background: rgba(20, 20, 35, 0.25);
         backdrop-filter: blur(25px) saturate(200%);
@@ -179,7 +159,6 @@
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
     }
     
-    /* Заголовки */
     .section-header {
         margin-bottom: 24px;
     }
@@ -231,7 +210,6 @@
         border-color: rgba(245, 197, 24, 0.3);
     }
     
-    /* Поля ввода */
     .search-section {
         margin-bottom: 16px;
     }
@@ -265,7 +243,6 @@
         color: rgba(255, 255, 255, 0.35);
     }
     
-    /* Кнопки с иконками */
     .btn-icon {
         display: flex;
         align-items: center;
@@ -288,7 +265,6 @@
         50% { box-shadow: 0 0 0 8px rgba(245, 197, 24, 0); }
     }
     
-    /* Видео */
     .video-wrapper {
         position: relative;
         margin: 20px 0;
@@ -314,7 +290,6 @@
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
     }
     
-    /* Управление видео */
     .video-controls {
         display: flex;
         gap: 12px;
@@ -327,7 +302,6 @@
         font-size: 15px;
     }
     
-    /* Участники */
     .members-section {
         margin-top: 24px;
         padding-top: 20px;
@@ -375,14 +349,8 @@
     }
     
     @keyframes tagFadeIn {
-        from {
-            opacity: 0;
-            transform: scale(0.8);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
+        from { opacity: 0; transform: scale(0.8); }
+        to { opacity: 1; transform: scale(1); }
     }
     
     .glass-tag:hover {
@@ -453,14 +421,8 @@
     }
     
     @keyframes messageSlideIn {
-        from {
-            opacity: 0;
-            transform: translateX(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
+        from { opacity: 0; transform: translateX(-10px); }
+        to { opacity: 1; transform: translateX(0); }
     }
     
     .message-header {
@@ -504,6 +466,49 @@
         color: #fff;
     }
     
+    /* ========== ИНДИКАТОР ПЕЧАТИ ========== */
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
+        animation: typingFadeIn 0.3s ease-out;
+    }
+    
+    @keyframes typingFadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .typing-text {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 13px;
+        font-style: italic;
+    }
+    
+    .typing-dots {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+    }
+    
+    .typing-dots .dot {
+        width: 5px;
+        height: 5px;
+        background: #f5c518;
+        border-radius: 50%;
+        animation: dotBounce 1.4s ease-in-out infinite;
+    }
+    
+    .typing-dots .dot:nth-child(1) { animation-delay: 0s; }
+    .typing-dots .dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots .dot:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes dotBounce {
+        0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+        30% { transform: translateY(-6px); opacity: 1; }
+    }
+    
     .chat-input-wrapper {
         padding-top: 16px;
         border-top: 0.5px solid rgba(255, 255, 255, 0.06);
@@ -533,7 +538,6 @@
         transform: scale(1.05) rotate(5deg);
     }
     
-    /* Выпадающий список поиска */
     .search-results {
         margin-top: 8px;
         max-height: 300px;
@@ -542,14 +546,8 @@
     }
     
     @keyframes dropdownSlide {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
     .glass-dropdown {
@@ -572,12 +570,10 @@
         background: rgba(245, 197, 24, 0.1);
     }
     
-    /* Адаптивность */
     @media (max-width: 900px) {
         .room-container {
             grid-template-columns: 1fr;
         }
-        
         .chat-section {
             height: 450px;
             min-height: auto;
@@ -588,11 +584,9 @@
         .input-group {
             flex-direction: column;
         }
-        
         .btn-icon {
             justify-content: center;
         }
-        
         .glow-text {
             font-size: 22px;
         }
@@ -610,15 +604,22 @@
     let isRemoteAction = false;
     let remoteActionTimer = null;
     let firstMessage = true;
+    let typingTimeout = null;
+    let isTyping = false;
+    let typingUsers = new Set();
     
     socket.emit('join', { room_id: roomId });
     
-    // ========== ЧАТ ==========
+    // ========== ЧАТ С ИНДИКАТОРОМ ПЕЧАТИ ==========
     function sendMessage() {
         const input = document.getElementById('message-input');
         const message = input.value.trim();
         
         if (message) {
+            clearTimeout(typingTimeout);
+            isTyping = false;
+            socket.emit('stop_typing', { room_id: roomId });
+            
             socket.emit('send_message', { room_id: roomId, message: message });
             input.value = '';
             input.focus();
@@ -631,7 +632,82 @@
         }
     });
     
+    document.getElementById('message-input').addEventListener('input', () => {
+        if (!isTyping) {
+            isTyping = true;
+            socket.emit('typing', { room_id: roomId });
+        }
+        
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            isTyping = false;
+            socket.emit('stop_typing', { room_id: roomId });
+        }, 1000);
+    });
+    
+    socket.on('user_typing', (data) => {
+        if (data.username !== currentUsername) {
+            showTypingIndicator(data.username);
+        }
+    });
+    
+    socket.on('user_stop_typing', (data) => {
+        if (data.username !== currentUsername) {
+            hideTypingIndicator(data.username);
+        }
+    });
+    
+    function showTypingIndicator(username) {
+        typingUsers.add(username);
+        updateTypingDisplay();
+    }
+    
+    function hideTypingIndicator(username) {
+        typingUsers.delete(username);
+        updateTypingDisplay();
+    }
+    
+    function updateTypingDisplay() {
+        let typingEl = document.getElementById('typing-indicator');
+        
+        if (typingUsers.size === 0) {
+            if (typingEl) typingEl.remove();
+            return;
+        }
+        
+        if (!typingEl) {
+            typingEl = document.createElement('div');
+            typingEl.id = 'typing-indicator';
+            typingEl.className = 'typing-indicator';
+            chatMessages.appendChild(typingEl);
+        }
+        
+        const usersArray = Array.from(typingUsers);
+        let text = '';
+        
+        if (usersArray.length === 1) {
+            text = `${usersArray[0]} печатает`;
+        } else if (usersArray.length === 2) {
+            text = `${usersArray[0]} и ${usersArray[1]} печатают`;
+        } else {
+            text = `${usersArray.length} человека печатают`;
+        }
+        
+        typingEl.innerHTML = `
+            <span class="typing-text">${text}</span>
+            <span class="typing-dots">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </span>
+        `;
+        
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
     socket.on('new_message', (data) => {
+        hideTypingIndicator(data.username);
+        
         if (firstMessage) {
             chatMessages.innerHTML = '';
             firstMessage = false;
