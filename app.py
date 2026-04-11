@@ -11,8 +11,6 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite, ChatMessage
-import eventlet
-eventlet.monkey_patch()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -24,8 +22,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', logger=False, engineio_logger=False)
+# Уберите эти строки:
+# import eventlet
+# eventlet.monkey_patch()
 
+# Оставьте:
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 # ==================== JSON ЛОГ ПОЛЬЗОВАТЕЛЕЙ ====================
 USERS_DATA_FILE = 'users_data.json'
 
