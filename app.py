@@ -23,51 +23,6 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
-@socketio.on('typing')
-@app.route('/room/leave/<int:room_id>')
-@login_required
-def leave_room_route(room_id):
-    room = Room.query.get_or_404(room_id)
-    
-    # Создатель не может покинуть комнату (должен удалить)
-    if room.created_by == current_user.id:
-        flash('Вы создатель комнаты. Используйте кнопку "Удалить"')
-        return redirect(url_for('rooms'))
-    
-    member = RoomMember.query.filter_by(room_id=room_id, user_id=current_user.id).first()
-    if member:
-        db.session.delete(member)
-        db.session.commit()
-        flash(f'Вы покинули комнату "{room.name}"')
-    
-    return redirect(url_for('rooms'))
-@app.route('/room/delete/<int:room_id>')
-@login_required
-def delete_room(room_id):
-    room = Room.query.get_or_404(room_id)
-    
-    # Только создатель может удалить комнату
-    if room.created_by != current_user.id:
-        flash('Только создатель может удалить комнату')
-        return redirect(url_for('rooms'))
-    
-    # Удаляем всё связанное с комнатой
-    ChatMessage.query.filter_by(room_id=room_id).delete()
-    RoomInvite.query.filter_by(room_id=room_id).delete()
-    RoomMember.query.filter_by(room_id=room_id).delete()
-    db.session.delete(room)
-    db.session.commit()
-    
-    flash(f'Комната "{room.name}" удалена')
-    return redirect(url_for('rooms'))
-def on_typing(data):
-    room = str(data['room_id'])
-    emit('user_typing', {'username': current_user.username}, room=room, include_self=False)
-
-@socketio.on('stop_typing')
-def on_stop_typing(data):
-    room = str(data['room_id'])
-    emit('user_stop_typing', {'username': current_user.username}, room=room, include_self=False)
 
 # ==================== JSON ЛОГ ПОЛЬЗОВАТЕЛЕЙ ====================
 USERS_DATA_FILE = 'users_data.json'
@@ -347,14 +302,39 @@ def reject_room_invite(invite_id):
         flash('Приглашение отклонено')
     return redirect(url_for('rooms'))
 
+@app.route('/room/delete/<int:room_id>')
+@login_required
+def delete_room(room_id):
+    room = Room.query.get_or_404(room_id)
+    
+    if room.created_by != current_user.id:
+        flash('Только создатель может удалить комнату')
+        return redirect(url_for('rooms'))
+    
+    ChatMessage.query.filter_by(room_id=room_id).delete()
+    RoomInvite.query.filter_by(room_id=room_id).delete()
+    RoomMember.query.filter_by(room_id=room_id).delete()
+    db.session.delete(room)
+    db.session.commit()
+    
+    flash(f'Комната "{room.name}" удалена')
+    return redirect(url_for('rooms'))
+
 @app.route('/room/leave/<int:room_id>')
 @login_required
 def leave_room_route(room_id):
+    room = Room.query.get_or_404(room_id)
+    
+    if room.created_by == current_user.id:
+        flash('Вы создатель комнаты. Используйте кнопку "Удалить"')
+        return redirect(url_for('rooms'))
+    
     member = RoomMember.query.filter_by(room_id=room_id, user_id=current_user.id).first()
     if member:
         db.session.delete(member)
         db.session.commit()
-        flash('Вы покинули комнату')
+        flash(f'Вы покинули комнату "{room.name}"')
+    
     return redirect(url_for('rooms'))
 
 # ==================== WEBSOCKET СИНХРОНИЗАЦИЯ ====================
@@ -403,6 +383,16 @@ def on_send_message(data):
         'message': message,
         'timestamp': msg.created_at.strftime('%H:%M')
     }, room=room)
+
+@socketio.on('typing')
+def on_typing(data):
+    room = str(data['room_id'])
+    emit('user_typing', {'username': current_user.username}, room=room, include_self=False)
+
+@socketio.on('stop_typing')
+def on_stop_typing(data):
+    room = str(data['room_id'])
+    emit('user_stop_typing', {'username': current_user.username}, room=room, include_self=False)
 
 # ==================== ЗАПУСК ====================
 if __name__ == '__main__':
