@@ -23,6 +23,15 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+@socketio.on('typing')
+def on_typing(data):
+    room = str(data['room_id'])
+    emit('user_typing', {'username': current_user.username}, room=room, include_self=False)
+
+@socketio.on('stop_typing')
+def on_stop_typing(data):
+    room = str(data['room_id'])
+    emit('user_stop_typing', {'username': current_user.username}, room=room, include_self=False)
 
 # ==================== JSON ЛОГ ПОЛЬЗОВАТЕЛЕЙ ====================
 USERS_DATA_FILE = 'users_data.json'
