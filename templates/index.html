@@ -1,21 +1,84 @@
 {% extends "base.html" %}
 
-{% block title %}Главная{% endblock %}
+{% block title %}Главная | FIRSOV{% endblock %}
 
 {% block content %}
-    <h1>🎬 Смотри фильмы с друзьями</h1>
+<div class="index-container">
+    <div class="glass-card welcome-card">
+        <h1 class="welcome-title">🎬 Смотри фильмы с друзьями</h1>
+        
+        {% if current_user.is_authenticated %}
+            <p class="welcome-text">Привет, <span class="username">{{ current_user.username }}</span>!</p>
+            <p class="welcome-hint">Перейдите в комнаты, чтобы начать просмотр</p>
+            <div class="welcome-actions">
+                <a href="{{ url_for('rooms') }}" class="btn btn-primary btn-lg">🎬 Перейти в комнаты</a>
+            </div>
+        {% else %}
+            <p class="welcome-text">Войдите или зарегистрируйтесь, чтобы смотреть фильмы с друзьями в синхроне!</p>
+            <div class="welcome-actions">
+                <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">Войти</a>
+                <a href="{{ url_for('register') }}" class="btn btn-outline btn-lg">Регистрация</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .index-container {
+        max-width: 600px;
+        margin: 60px auto;
+    }
     
-    {% if current_user.is_authenticated %}
-        <div class="form-card" style="text-align: center;">
-            <p style="margin-bottom: 20px;">Привет, {{ current_user.username }}!</p>
-            <p style="margin-bottom: 20px;">Здесь скоро появится список комнат для просмотра фильмов с друзьями.</p>
-            <a href="#" class="btn" style="display: inline-block; width: auto;">➕ Создать комнату</a>
-        </div>
-    {% else %}
-        <div class="form-card" style="text-align: center;">
-            <p style="margin-bottom: 20px;">Войди или зарегистрируйся, чтобы смотреть фильмы с друзьями в синхроне!</p>
-            <a href="{{ url_for('login') }}" class="btn" style="display: inline-block; width: auto;">Войти</a>
-            <a href="{{ url_for('register') }}" class="btn" style="display: inline-block; width: auto; background: #28a745;">Регистрация</a>
-        </div>
-    {% endif %}
+    .welcome-card {
+        text-align: center;
+        padding: 48px 32px;
+    }
+    
+    .welcome-title {
+        font-size: 36px;
+        margin-bottom: 24px;
+        background: linear-gradient(135deg, #f5c518 0%, #ff9d00 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .welcome-text {
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 18px;
+        margin-bottom: 12px;
+    }
+    
+    .username {
+        color: #f5c518;
+        font-weight: 600;
+    }
+    
+    .welcome-hint {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 14px;
+        margin-bottom: 32px;
+    }
+    
+    .welcome-actions {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+    }
+    
+    .btn-lg {
+        padding: 16px 32px !important;
+        font-size: 16px !important;
+    }
+    
+    @media (max-width: 600px) {
+        .welcome-title {
+            font-size: 28px;
+        }
+        
+        .welcome-actions {
+            flex-direction: column;
+        }
+    }
+</style>
 {% endblock %}
