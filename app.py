@@ -24,6 +24,23 @@ login_manager.login_view = 'login'
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 @socketio.on('typing')
+@app.route('/room/leave/<int:room_id>')
+@login_required
+def leave_room_route(room_id):
+    room = Room.query.get_or_404(room_id)
+    
+    # Создатель не может покинуть комнату (должен удалить)
+    if room.created_by == current_user.id:
+        flash('Вы создатель комнаты. Используйте кнопку "Удалить"')
+        return redirect(url_for('rooms'))
+    
+    member = RoomMember.query.filter_by(room_id=room_id, user_id=current_user.id).first()
+    if member:
+        db.session.delete(member)
+        db.session.commit()
+        flash(f'Вы покинули комнату "{room.name}"')
+    
+    return redirect(url_for('rooms'))
 @app.route('/room/delete/<int:room_id>')
 @login_required
 def delete_room(room_id):
