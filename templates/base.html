@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Favicon - Буква F в золотом круге -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23f5c518'/%3E%3Cstop offset='100%25' stop-color='%23ff8c00'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='50' cy='50' r='45' fill='url(%23g)'/%3E%3Ctext x='50' y='72' font-size='55' text-anchor='middle' fill='%23000' font-weight='bold' font-family='Arial, sans-serif'%3EF%3C/text%3E%3C/svg%3E">
+    
     <title>{% block title %}FIRSOV{% endblock %}</title>
     <style>
         * {
@@ -253,7 +257,7 @@
             100% { opacity: 0; }
         }
         
-        /* ========== УЛУЧШЕННЫЙ GLASSMORPHISM ========== */
+        /* ========== СТЕКЛЯННЫЙ ИНТЕРФЕЙС ========== */
         .container {
             max-width: 1600px;
             margin: 0 auto;
@@ -262,7 +266,6 @@
             z-index: 1;
         }
         
-        /* Очень прозрачная навигация */
         .nav {
             background: rgba(15, 15, 25, 0.25);
             backdrop-filter: blur(25px) saturate(200%);
@@ -324,55 +327,83 @@
             font-weight: 500;
         }
         
-        /* Прозрачные кнопки */
-        .btn {
-            background: rgba(245, 197, 24, 0.2);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            color: #fff;
-            padding: 10px 20px;
-            border: 0.5px solid rgba(245, 197, 24, 0.4);
-            border-radius: 30px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: all 0.25s;
-            letter-spacing: -0.2px;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        /* ========== КОНТУРНЫЕ ПРОЗРАЧНЫЕ КНОПКИ ========== */
+        .btn, button, a.btn, form .btn, .form-card .btn, .card .btn, [class*="btn"] {
+            background: transparent !important;
+            backdrop-filter: blur(10px) !important;
+            -webkit-backdrop-filter: blur(10px) !important;
+            padding: 10px 20px !important;
+            border-radius: 30px !important;
+            font-size: 14px !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            text-decoration: none !important;
+            display: inline-block !important;
+            transition: all 0.25s !important;
+            text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3) !important;
         }
         
-        .btn:hover {
-            background: rgba(245, 197, 24, 0.35);
-            border-color: rgba(245, 197, 24, 0.6);
-            transform: scale(1.02);
-            box-shadow: 0 0 20px rgba(245, 197, 24, 0.2);
-            color: #fff;
+        .btn, .btn-secondary, .btn-outline-secondary, .nav-links .btn-outline {
+            color: rgba(255, 255, 255, 0.9) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            background: transparent !important;
         }
         
-        .btn-outline {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            color: rgba(255, 255, 255, 0.9);
-            border: 0.5px solid rgba(255, 255, 255, 0.2);
-            padding: 8px 16px;
-            border-radius: 30px;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-            transition: all 0.25s;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        .btn:hover, .btn-secondary:hover, .nav-links .btn-outline:hover {
+            border-color: rgba(255, 255, 255, 0.6) !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+            transform: scale(1.02) !important;
         }
         
-        .btn-outline:hover {
-            background: rgba(245, 197, 24, 0.15);
-            border-color: rgba(245, 197, 24, 0.4);
-            color: #f5c518;
+        .btn-primary, .btn-warning, .btn-add, .btn-vk, .btn-load, .btn-play, .btn-send, button[type="submit"] {
+            color: #f5c518 !important;
+            border: 1px solid rgba(245, 197, 24, 0.5) !important;
+            background: transparent !important;
         }
         
-        /* Очень прозрачные карточки */
+        .btn-primary:hover, .btn-add:hover, .btn-vk:hover, .btn-load:hover, .btn-play:hover, .btn-send:hover, button[type="submit"]:hover {
+            border-color: #f5c518 !important;
+            background: rgba(245, 197, 24, 0.08) !important;
+            box-shadow: 0 0 15px rgba(245, 197, 24, 0.15) !important;
+        }
+        
+        .btn-success, .btn-accept {
+            color: #5cff85 !important;
+            border: 1px solid rgba(92, 255, 133, 0.5) !important;
+            background: transparent !important;
+        }
+        
+        .btn-success:hover, .btn-accept:hover {
+            border-color: #5cff85 !important;
+            background: rgba(92, 255, 133, 0.08) !important;
+            box-shadow: 0 0 15px rgba(92, 255, 133, 0.15) !important;
+        }
+        
+        .btn-danger, .btn-reject, .btn-leave, .btn-pause {
+            color: #ff6b6b !important;
+            border: 1px solid rgba(255, 107, 107, 0.5) !important;
+            background: transparent !important;
+        }
+        
+        .btn-danger:hover, .btn-reject:hover, .btn-leave:hover, .btn-pause:hover {
+            border-color: #ff6b6b !important;
+            background: rgba(255, 107, 107, 0.08) !important;
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.15) !important;
+        }
+        
+        .btn-info, .btn-search {
+            color: #4da6ff !important;
+            border: 1px solid rgba(77, 166, 255, 0.5) !important;
+            background: transparent !important;
+        }
+        
+        .btn-info:hover, .btn-search:hover {
+            border-color: #4da6ff !important;
+            background: rgba(77, 166, 255, 0.08) !important;
+            box-shadow: 0 0 15px rgba(77, 166, 255, 0.15) !important;
+        }
+        
+        /* Карточки */
         .card, .form-card {
             background: rgba(20, 20, 35, 0.3);
             backdrop-filter: blur(25px) saturate(200%);
@@ -383,7 +414,6 @@
             border: 0.5px solid rgba(255, 255, 255, 0.08);
         }
         
-        /* Читаемый текст */
         h1, h2, h3 {
             color: rgba(255, 255, 255, 0.95);
             font-weight: 600;
@@ -419,7 +449,6 @@
             text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
         }
         
-        /* Прозрачные поля ввода с читаемым текстом */
         input, textarea, select {
             width: 100%;
             padding: 14px 18px;
@@ -467,13 +496,11 @@
             text-shadow: 0 0 15px rgba(245, 197, 24, 0.4);
         }
         
-        /* Улучшенная читаемость для списков и текста */
         ul, ol, li {
             color: rgba(255, 255, 255, 0.85);
             text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
         }
         
-        /* Адаптивность */
         @media (max-width: 768px) {
             .container {
                 padding: 16px;
@@ -491,256 +518,6 @@
                 font-size: 20px;
             }
         }
-        /* ========== ГЛОБАЛЬНЫЕ ПРОЗРАЧНЫЕ КНОПКИ ========== */
-
-/* Все кнопки прозрачные */
-.btn,
-button,
-a.btn,
-form .btn,
-.form-card .btn,
-.card .btn,
-[class*="btn"] {
-    background: rgba(255, 255, 255, 0.06) !important;
-    backdrop-filter: blur(15px) !important;
-    -webkit-backdrop-filter: blur(15px) !important;
-    color: rgba(255, 255, 255, 0.9) !important;
-    border: 0.5px solid rgba(255, 255, 255, 0.15) !important;
-    padding: 10px 20px !important;
-    border-radius: 30px !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    cursor: pointer !important;
-    text-decoration: none !important;
-    display: inline-block !important;
-    transition: all 0.25s !important;
-    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3) !important;
-    box-shadow: none !important;
-}
-
-/* Золотые акцентные кнопки */
-.btn-primary,
-.btn-success,
-.btn-accept,
-.btn-add,
-button[type="submit"],
-.btn-vk,
-.btn-load,
-.btn-play,
-.btn-pause,
-.btn-send {
-    background: rgba(245, 197, 24, 0.15) !important;
-    border: 0.5px solid rgba(245, 197, 24, 0.35) !important;
-    color: #f5c518 !important;
-}
-
-/* Красные кнопки */
-.btn-danger,
-.btn-reject,
-.btn-leave {
-    background: rgba(220, 53, 69, 0.12) !important;
-    border: 0.5px solid rgba(220, 53, 69, 0.35) !important;
-    color: #ff6b6b !important;
-}
-
-/* Зелёные кнопки */
-.btn-success,
-.btn-accept {
-    background: rgba(40, 167, 69, 0.12) !important;
-    border: 0.5px solid rgba(40, 167, 69, 0.35) !important;
-    color: #5cff85 !important;
-}
-
-/* Ховер эффекты */
-.btn:hover,
-button:hover,
-a.btn:hover {
-    background: rgba(255, 255, 255, 0.12) !important;
-    border-color: rgba(255, 255, 255, 0.3) !important;
-    transform: scale(1.02) !important;
-}
-
-.btn-primary:hover,
-.btn-success:hover,
-.btn-accept:hover,
-.btn-add:hover,
-button[type="submit"]:hover,
-.btn-vk:hover,
-.btn-load:hover,
-.btn-play:hover,
-.btn-pause:hover,
-.btn-send:hover {
-    background: rgba(245, 197, 24, 0.25) !important;
-    border-color: rgba(245, 197, 24, 0.5) !important;
-    box-shadow: 0 0 20px rgba(245, 197, 24, 0.2) !important;
-}
-
-.btn-danger:hover,
-.btn-reject:hover,
-.btn-leave:hover {
-    background: rgba(220, 53, 69, 0.2) !important;
-    border-color: rgba(220, 53, 69, 0.5) !important;
-    box-shadow: 0 0 20px rgba(220, 53, 69, 0.2) !important;
-}
-
-/* Ссылки-кнопки в навигации */
-.nav-links .btn-outline {
-    background: rgba(255, 255, 255, 0.05) !important;
-    backdrop-filter: blur(15px) !important;
-    -webkit-backdrop-filter: blur(15px) !important;
-    color: rgba(255, 255, 255, 0.9) !important;
-    border: 0.5px solid rgba(255, 255, 255, 0.15) !important;
-    padding: 8px 16px !important;
-    border-radius: 30px !important;
-}
-
-.nav-links .btn-outline:hover {
-    background: rgba(245, 197, 24, 0.12) !important;
-    border-color: rgba(245, 197, 24, 0.35) !important;
-    color: #f5c518 !important;
-}
-
-/* Кнопки в формах */
-input[type="submit"],
-button[type="submit"] {
-    background: rgba(245, 197, 24, 0.15) !important;
-    border: 0.5px solid rgba(245, 197, 24, 0.35) !important;
-    color: #f5c518 !important;
-}
-
-/* Убираем стандартные фоны у кнопок */
-.btn-secondary,
-.btn-outline-secondary {
-    background: rgba(255, 255, 255, 0.06) !important;
-    border: 0.5px solid rgba(255, 255, 255, 0.15) !important;
-    color: rgba(255, 255, 255, 0.8) !important;
-}
-
-/* Адаптивность для кнопок */
-@media (max-width: 768px) {
-    .btn,
-    button,
-    a.btn {
-        padding: 8px 16px !important;
-        font-size: 13px !important;
-    }
-}
-/* ========== КОНТУРНЫЕ ПРОЗРАЧНЫЕ КНОПКИ ========== */
-
-/* Все кнопки - контурные */
-.btn,
-button,
-a.btn,
-form .btn,
-.form-card .btn,
-.card .btn,
-[class*="btn"] {
-    background: transparent !important;
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
-    padding: 10px 20px !important;
-    border-radius: 30px !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    cursor: pointer !important;
-    text-decoration: none !important;
-    display: inline-block !important;
-    transition: all 0.25s !important;
-    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3) !important;
-}
-
-/* Обычные кнопки - белый контур */
-.btn,
-.btn-secondary,
-.btn-outline-secondary,
-.nav-links .btn-outline {
-    color: rgba(255, 255, 255, 0.9) !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    background: transparent !important;
-}
-
-.btn:hover,
-.btn-secondary:hover,
-.nav-links .btn-outline:hover {
-    border-color: rgba(255, 255, 255, 0.6) !important;
-    background: rgba(255, 255, 255, 0.05) !important;
-    transform: scale(1.02) !important;
-}
-
-/* Золотые кнопки - жёлтый контур */
-.btn-primary,
-.btn-warning,
-.btn-add,
-.btn-vk,
-.btn-load,
-.btn-play,
-.btn-send,
-button[type="submit"] {
-    color: #f5c518 !important;
-    border: 1px solid rgba(245, 197, 24, 0.5) !important;
-    background: transparent !important;
-}
-
-.btn-primary:hover,
-.btn-add:hover,
-.btn-vk:hover,
-.btn-load:hover,
-.btn-play:hover,
-.btn-send:hover,
-button[type="submit"]:hover {
-    border-color: #f5c518 !important;
-    background: rgba(245, 197, 24, 0.08) !important;
-    box-shadow: 0 0 15px rgba(245, 197, 24, 0.15) !important;
-}
-
-/* Зелёные кнопки - зелёный контур */
-.btn-success,
-.btn-accept {
-    color: #5cff85 !important;
-    border: 1px solid rgba(92, 255, 133, 0.5) !important;
-    background: transparent !important;
-}
-
-.btn-success:hover,
-.btn-accept:hover {
-    border-color: #5cff85 !important;
-    background: rgba(92, 255, 133, 0.08) !important;
-    box-shadow: 0 0 15px rgba(92, 255, 133, 0.15) !important;
-}
-
-/* Красные кнопки - красный контур */
-.btn-danger,
-.btn-reject,
-.btn-leave,
-.btn-pause {
-    color: #ff6b6b !important;
-    border: 1px solid rgba(255, 107, 107, 0.5) !important;
-    background: transparent !important;
-}
-
-.btn-danger:hover,
-.btn-reject:hover,
-.btn-leave:hover,
-.btn-pause:hover {
-    border-color: #ff6b6b !important;
-    background: rgba(255, 107, 107, 0.08) !important;
-    box-shadow: 0 0 15px rgba(255, 107, 107, 0.15) !important;
-}
-
-/* Синие кнопки - синий контур */
-.btn-info,
-.btn-search {
-    color: #4da6ff !important;
-    border: 1px solid rgba(77, 166, 255, 0.5) !important;
-    background: transparent !important;
-}
-
-.btn-info:hover,
-.btn-search:hover {
-    border-color: #4da6ff !important;
-    background: rgba(77, 166, 255, 0.08) !important;
-    box-shadow: 0 0 15px rgba(77, 166, 255, 0.15) !important;
-}
     </style>
 </head>
 <body>
