@@ -4,6 +4,8 @@ import string
 import os
 import secrets
 import requests
+import json
+from datetime import datetime
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_socketio import SocketIO, join_room, emit
@@ -21,6 +23,30 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# ==================== JSON ЛОГ ПОЛЬЗОВАТЕЛЕЙ ====================
+USERS_DATA_FILE = 'users_data.json'
+
+def save_user_data(username, email, password_hash):
+    """Сохраняет данные пользователя в JSON-файл"""
+    try:
+        with open(USERS_DATA_FILE, 'r', encoding='utf-8') as f:
+            users = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        users = []
+    
+    users.append({
+        'id': len(users) + 1,
+        'username': username,
+        'email': email,
+        'password_hash': password_hash,
+        'registered_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
+    
+    with open(USERS_DATA_FILE, 'w', encoding='utf-8') as f:
+        json.dump(users, f, ensure_ascii=False, indent=2)
+    
+    print(f"✅ Данные сохранены в {USERS_DATA_FILE}")
 
 # ==================== VK API ====================
 VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
@@ -77,14 +103,26 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
+        
         if User.query.filter_by(username=username).first():
             flash('Логин занят')
             return redirect(url_for('register'))
-        user = User(username=username, email=email, password=generate_password_hash(password))
+        
+        if User.query.filter_by(email=email).first():
+            flash('Email уже используется')
+            return redirect(url_for('register'))
+        
+        password_hash = generate_password_hash(password)
+        user = User(username=username, email=email, password=password_hash)
         db.session.add(user)
         db.session.commit()
+        
+        # Сохраняем в JSON
+        save_user_data(username, email, password_hash)
+        
         flash('Регистрация успешна! Войдите')
         return redirect(url_for('login'))
+    
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -117,7 +155,6 @@ def search():
     q = request.args.get('q', '').strip()
     users = []
     
-    # Показываем результаты ТОЛЬКО если есть запрос
     if q:
         users = User.query.filter(
             User.username.contains(q), 
@@ -286,28 +323,24 @@ def on_join(data):
 def on_play(data):
     room = str(data['room_id'])
     time = data['current_time']
-    print(f'Play in room {room} at {time}')
     emit('play_sync', {'current_time': time}, room=room, include_self=False)
 
 @socketio.on('pause')
 def on_pause(data):
     room = str(data['room_id'])
     time = data['current_time']
-    print(f'Pause in room {room} at {time}')
     emit('pause_sync', {'current_time': time}, room=room, include_self=False)
 
 @socketio.on('seek')
 def on_seek(data):
     room = str(data['room_id'])
     time = data['current_time']
-    print(f'Seek in room {room} to {time}')
     emit('seek_sync', {'current_time': time}, room=room, include_self=False)
 
 @socketio.on('change_video')
 def on_change_video(data):
     room = str(data['room_id'])
     url = data['video_url']
-    print(f'Change video in room {room} to {url}')
     emit('video_change_sync', {'video_url': url}, room=room, include_self=False)
 
 @socketio.on('send_message')
