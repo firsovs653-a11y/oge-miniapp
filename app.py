@@ -404,7 +404,7 @@ def vk_callback():
         return f"""
         <!DOCTYPE html>
         <html>
-        <head><title>VK Auth</title></head>
+        <head><title>VK Auth - Sinchro</title></head>
         <body style="background:#0a0a1a; color:#fff; font-family:sans-serif; padding:40px; text-align:center;">
             <h2>✅ Код авторизации получен!</h2>
             <p>Скопируйте этот код и вставьте в терминал, где запущен скрипт:</p>
@@ -415,7 +415,6 @@ def vk_callback():
         """
     else:
         return "<h2>❌ Ошибка: код не найден в URL</h2>"
-
 # ==================== ЗАПУСК ====================
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
