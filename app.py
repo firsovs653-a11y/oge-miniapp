@@ -65,22 +65,47 @@ def search_vk():
     if not query:
         return jsonify({'error': 'Empty query'}), 400
     
-    return jsonify({
-        'results': [
-            {
-                'title': f'Тестовое видео по запросу "{query}"',
-                'video_url': 'https://www.w3schools.com/html/mov_bbb.mp4',
-                'duration': 600,
-                'views': 1000
-            },
-            {
-                'title': 'Big Buck Bunny (тестовое видео)',
-                'video_url': 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4',
-                'duration': 60,
-                'views': 5000
-            }
-        ]
-    })
+    if not VK_ACCESS_TOKEN:
+        return jsonify({'error': 'VK token not configured'}), 500
+    
+    try:
+        # Запрос к VK API
+        response = requests.get('https://api.vk.com/method/video.search', params={
+            'q': query,
+            'count': 10,
+            'adult': 0,
+            'hd': 1,
+            'extended': 1,
+            'access_token': VK_ACCESS_TOKEN,
+            'v': '5.199'
+        }, timeout=10)
+        
+        data = response.json()
+        
+        if 'error' in data:
+            return jsonify({'error': data['error'].get('error_msg', 'VK API error')}), 500
+        
+        items = data.get('response', {}).get('items', [])
+        results = []
+        
+        for item in items:
+            # Берём ссылку на встраиваемый плеер
+            player_url = item.get('player')
+            
+            if player_url:
+                results.append({
+                    'title': item['title'],
+                    'video_url': player_url,  # ← Это iframe-плеер VK
+                    'duration': item.get('duration', 0),
+                    'views': item.get('views', 0),
+                    'thumbnail': item.get('image', [{}])[-1].get('url', '') if item.get('image') else ''
+                })
+        
+        return jsonify({'results': results})
+        
+    except Exception as e:
+        print(f"VK API error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 def generate_room_code():
