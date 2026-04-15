@@ -397,6 +397,24 @@ def on_typing(data):
 def on_stop_typing(data):
     room = str(data['room_id'])
     emit('user_stop_typing', {'username': current_user.username}, room=room, include_self=False)
+@app.route('/vk_callback')
+def vk_callback():
+    code = request.args.get('code')
+    if code:
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head><title>VK Auth</title></head>
+        <body style="background:#0a0a1a; color:#fff; font-family:sans-serif; padding:40px; text-align:center;">
+            <h2>✅ Код авторизации получен!</h2>
+            <p>Скопируйте этот код и вставьте в терминал, где запущен скрипт:</p>
+            <textarea rows="3" cols="80" readonly style="font-family:monospace; padding:10px; border-radius:8px;">{code}</textarea>
+            <p style="margin-top:20px; color:#888;">Можно закрыть эту страницу</p>
+        </body>
+        </html>
+        """
+    else:
+        return "<h2>❌ Ошибка: код не найден в URL</h2>"
 
 # ==================== ЗАПУСК ====================
 if __name__ == '__main__':
