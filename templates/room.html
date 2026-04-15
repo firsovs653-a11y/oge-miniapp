@@ -123,6 +123,32 @@ const socket = io(window.location.origin, {
     upgrade: true,
     reconnection: true
 });
+// ========== ПРИВЯЗКА СОБЫТИЙ ВИДЕОПЛЕЕРА ==========
+function bindVideoEvents(videoElement) {
+    // Перехват play
+    videoElement.addEventListener('play', () => {
+        if (!isRemoteAction) {
+            socket.emit('play', { room_id: roomId, current_time: videoElement.currentTime });
+        }
+    });
+    
+    // Перехват pause
+    videoElement.addEventListener('pause', () => {
+        if (!isRemoteAction) {
+            socket.emit('pause', { room_id: roomId, current_time: videoElement.currentTime });
+        }
+    });
+    
+    // Перехват seek
+    videoElement.addEventListener('seeked', () => {
+        if (!isRemoteAction) {
+            socket.emit('seek', { room_id: roomId, current_time: videoElement.currentTime });
+        }
+    });
+    
+    // Заменяем глобальную переменную video
+    window.video = videoElement;
+}
 
 const roomId = {{ room.id }};
 const currentUsername = '{{ current_user.username }}';
@@ -257,6 +283,8 @@ function changeVideo() {
 }
 
 // ========== ПОИСК VK ==========
+// ========== ПОИСК VK ==========
+// ========== ПОИСК ВИДЕО (KODIK) ==========
 window.searchVK = function() {
     const query = document.getElementById('search-query').value;
     if (!query.trim()) return;
@@ -265,7 +293,7 @@ window.searchVK = function() {
     resultsDiv.style.display = 'block';
     resultsDiv.innerHTML = '<div class="search-result-item">⏳ Поиск...</div>';
     
-    fetch('/api/search_vk', {
+    fetch('/api/search_video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: query })
@@ -286,26 +314,36 @@ window.searchVK = function() {
             const item = document.createElement('div');
             item.className = 'search-result-item';
             item.onclick = () => {
-                const url = videoItem.video_url;
-                const oidMatch = url.match(/oid=(-?\d+)/);
-                const idMatch = url.match(/id=(\d+)/);
+                isRemoteAction = true;
                 
-                if (oidMatch && idMatch) {
-                    currentVideo.thumbnailUrl = videoItem.thumbnail || '';
-                    loadVideo(oidMatch[1], idMatch[1], 0, true, videoItem.thumbnail);
-                    socket.emit('change_video', { room_id: roomId, owner_id: oidMatch[1], video_id: idMatch[1] });
-                }
+                // Создаём обычный video-плеер с прямой ссылкой
+                const videoWrapper = document.querySelector('.video-wrapper');
+                videoWrapper.innerHTML = `
+                    <video id="video-player" controls class="glass-video">
+                        <source src="${videoItem.video_url}" type="video/mp4">
+                    </video>
+                `;
+                
+                // Переназначаем переменную video на новый элемент
+                const newVideo = document.getElementById('video-player');
+                
+                // Перепривязываем события синхронизации
+                bindVideoEvents(newVideo);
+                
+                socket.emit('change_video', { room_id: roomId, video_url: videoItem.video_url });
                 resultsDiv.style.display = 'none';
+                setTimeout(() => { isRemoteAction = false; }, 500);
             };
             
-            const min = Math.floor(videoItem.duration / 60);
-            const sec = String(videoItem.duration % 60).padStart(2, '0');
+            const minutes = Math.floor(videoItem.duration / 60);
+            const seconds = String(videoItem.duration % 60).padStart(2, '0');
+            
             item.innerHTML = `
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <img src="${videoItem.thumbnail}" style="width:50px; height:35px; object-fit:cover; border-radius:4px;">
+                    <img src="${videoItem.thumbnail}" style="width:50px; height:35px; object-fit:cover; border-radius:4px;" onerror="this.style.display='none'">
                     <div>
                         <strong>${videoItem.title}</strong><br>
-                        <small>👁 ${videoItem.views} • ⏱ ${min}:${sec}</small>
+                        <small>⏱ ${minutes}:${seconds}</small>
                     </div>
                 </div>
             `;
