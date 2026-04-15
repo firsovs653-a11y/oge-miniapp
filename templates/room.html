@@ -20,13 +20,13 @@
             </div>
         </div>
         
-        <!-- Поиск VK -->
+        <!-- Поиск -->
         <div class="search-section">
             <div class="input-group">
-                <input type="text" id="search-query" placeholder="🔍 Найти видео VK..." class="glass-input">
-                <button onclick="searchVK()" class="btn btn-primary btn-icon">
+                <input type="text" id="search-query" placeholder="🔍 Найти фильм или сериал..." class="glass-input">
+                <button onclick="searchVideo()" class="btn btn-primary btn-icon">
                     <span>🎬</span>
-                    <span>VK Видео</span>
+                    <span>Найти</span>
                 </button>
             </div>
             <div id="search-results" class="search-results glass-dropdown" style="display: none;"></div>
@@ -34,7 +34,7 @@
         
         <!-- Ручной ввод ссылки -->
         <div class="input-group">
-            <input type="text" id="video-url" placeholder="Или вставь ссылку на плеер VK (video_ext.php)" class="glass-input">
+            <input type="text" id="video-url" placeholder="Или вставь прямую ссылку на MP4" class="glass-input">
             <button onclick="changeVideo()" class="btn btn-success btn-icon">
                 <span>📺</span>
                 <span>Загрузить</span>
@@ -42,12 +42,10 @@
         </div>
         
         <!-- Видеоплеер -->
-        <div class="video-wrapper" style="position: relative; min-height: 300px;">
-            <div id="player-container" style="width: 100%; height: 100%;">
-                <div style="color: rgba(255,255,255,0.5); text-align: center; padding: 60px;">
-                    🔍 Найдите видео через поиск VK
-                </div>
-            </div>
+        <div class="video-wrapper">
+            <video id="video-player" controls class="glass-video">
+                <source id="video-source" src="" type="video/mp4">
+            </video>
             <div class="video-overlay"></div>
         </div>
         
@@ -112,8 +110,79 @@
 
 <style>
     /* Весь ваш CSS остаётся без изменений */
-    .room-container { display: grid; grid-template-columns: 1fr 380px; gap: 20px; max-width: 1600px; margin: 0 auto; }
-    /* ... (весь остальной CSS из вашего файла) ... */
+    .room-container { display: grid; grid-template-columns: 1fr 380px; gap: 20px; max-width: 1600px; margin: 0 auto; animation: containerFadeIn 0.6s ease-out; }
+    @keyframes containerFadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-in { animation: slideInLeft 0.5s ease-out; }
+    .animate-in-delay { animation: slideInRight 0.5s ease-out 0.1s both; }
+    @keyframes slideInLeft { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes slideInRight { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+    .glass-card { background: rgba(20, 20, 35, 0.25); backdrop-filter: blur(25px) saturate(200%); -webkit-backdrop-filter: blur(25px) saturate(200%); border-radius: 28px; padding: 24px; border: 0.5px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); transition: all 0.3s ease; }
+    .glass-card:hover { border-color: rgba(245, 197, 24, 0.15); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); }
+    .section-header { margin-bottom: 24px; }
+    .glow-text { color: rgba(255, 255, 255, 0.95); font-size: 28px; font-weight: 700; margin: 0 0 12px 0; text-shadow: 0 2px 15px rgba(245, 197, 24, 0.3); letter-spacing: -0.5px; animation: textGlow 3s ease-in-out infinite; }
+    @keyframes textGlow { 0%, 100% { text-shadow: 0 2px 15px rgba(245, 197, 24, 0.2); } 50% { text-shadow: 0 2px 25px rgba(245, 197, 24, 0.4); } }
+    .room-badges { display: flex; gap: 10px; flex-wrap: wrap; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 0.5px solid rgba(255, 255, 255, 0.1); border-radius: 30px; color: rgba(255, 255, 255, 0.8); font-size: 13px; font-weight: 500; transition: all 0.3s ease; }
+    .badge:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(245, 197, 24, 0.3); transform: translateY(-1px); }
+    .code-badge { color: #f5c518; border-color: rgba(245, 197, 24, 0.3); }
+    .search-section { margin-bottom: 16px; }
+    .input-group { display: flex; gap: 10px; margin-bottom: 12px; }
+    .glass-input { flex: 1; padding: 14px 18px; background: rgba(15, 15, 25, 0.4); backdrop-filter: blur(15px); border: 0.5px solid rgba(255, 255, 255, 0.1); border-radius: 40px; color: #fff; font-size: 14px; outline: none; transition: all 0.3s ease; }
+    .glass-input:focus { border-color: rgba(245, 197, 24, 0.5); box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.1); transform: scale(1.01); }
+    .glass-input::placeholder { color: rgba(255, 255, 255, 0.35); }
+    .btn-icon { display: flex; align-items: center; gap: 8px; padding: 14px 20px; white-space: nowrap; transition: all 0.3s ease; }
+    .btn-icon:hover { transform: translateY(-2px); }
+    .pulse-animation { animation: buttonPulse 2s ease-in-out infinite; }
+    @keyframes buttonPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 197, 24, 0.2); } 50% { box-shadow: 0 0 0 8px rgba(245, 197, 24, 0); } }
+    .video-wrapper { position: relative; margin: 20px 0; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+    .glass-video { width: 100%; display: block; background: #000; }
+    .video-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; border-radius: 16px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05); }
+    .video-controls { display: flex; gap: 12px; margin: 20px 0; }
+    .video-controls .btn { flex: 1; padding: 14px; font-size: 15px; }
+    .members-section { margin-top: 24px; padding-top: 20px; border-top: 0.5px solid rgba(255, 255, 255, 0.06); }
+    .section-title { display: flex; align-items: center; gap: 8px; margin: 0 0 16px 0; color: rgba(255, 255, 255, 0.9); font-size: 16px; font-weight: 500; }
+    .member-count { margin-left: auto; background: rgba(245, 197, 24, 0.15); padding: 2px 10px; border-radius: 20px; font-size: 13px; color: #f5c518; }
+    .members-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .glass-tag { display: flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(10px); border: 0.5px solid rgba(255, 255, 255, 0.08); border-radius: 30px; color: rgba(255, 255, 255, 0.85); font-size: 13px; transition: all 0.3s ease; animation: tagFadeIn 0.4s ease-out; }
+    @keyframes tagFadeIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+    .glass-tag:hover { background: rgba(245, 197, 24, 0.1); border-color: rgba(245, 197, 24, 0.2); transform: translateY(-1px); }
+    .chat-section { display: flex; flex-direction: column; height: calc(100vh - 100px); min-height: 600px; }
+    .chat-header { padding-bottom: 16px; border-bottom: 0.5px solid rgba(255, 255, 255, 0.06); }
+    .pulse-dot { width: 8px; height: 8px; background: #5cff85; border-radius: 50%; margin-left: auto; animation: dotPulse 1.5s ease-in-out infinite; }
+    @keyframes dotPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 20px 4px; display: flex; flex-direction: column; gap: 12px; }
+    .chat-empty { text-align: center; padding: 40px 20px; color: rgba(255, 255, 255, 0.35); }
+    .empty-icon { font-size: 48px; display: block; margin-bottom: 12px; opacity: 0.5; }
+    .empty-hint { font-size: 12px; margin-top: 4px; }
+    .chat-message { display: flex; flex-direction: column; gap: 4px; animation: messageSlideIn 0.3s ease-out; }
+    @keyframes messageSlideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    .message-header { display: flex; align-items: center; gap: 8px; }
+    .message-username { color: #f5c518; font-weight: 600; font-size: 13px; }
+    .message-time { color: rgba(255, 255, 255, 0.35); font-size: 11px; }
+    .message-text { color: rgba(255, 255, 255, 0.9); font-size: 14px; line-height: 1.5; word-break: break-word; background: rgba(255, 255, 255, 0.05); padding: 10px 14px; border-radius: 18px; display: inline-block; max-width: 85%; backdrop-filter: blur(10px); border: 0.5px solid rgba(255, 255, 255, 0.06); }
+    .chat-message.own { align-items: flex-end; }
+    .chat-message.own .message-text { background: rgba(245, 197, 24, 0.15); border-color: rgba(245, 197, 24, 0.2); color: #fff; }
+    .typing-indicator { display: flex; align-items: center; gap: 8px; padding: 8px 0; animation: typingFadeIn 0.3s ease-out; }
+    @keyframes typingFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .typing-text { color: rgba(255, 255, 255, 0.5); font-size: 13px; font-style: italic; }
+    .typing-dots { display: flex; align-items: center; gap: 3px; }
+    .typing-dots .dot { width: 5px; height: 5px; background: #f5c518; border-radius: 50%; animation: dotBounce 1.4s ease-in-out infinite; }
+    .typing-dots .dot:nth-child(1) { animation-delay: 0s; }
+    .typing-dots .dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dotBounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-6px); opacity: 1; } }
+    .chat-input-wrapper { padding-top: 16px; border-top: 0.5px solid rgba(255, 255, 255, 0.06); }
+    .chat-input-group { display: flex; gap: 10px; }
+    .chat-input-group .glass-input { flex: 1; }
+    .btn-send { width: 52px; height: 52px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; transition: all 0.3s ease; }
+    .btn-send:hover { transform: scale(1.05) rotate(5deg); }
+    .search-results { margin-top: 8px; max-height: 300px; overflow-y: auto; animation: dropdownSlide 0.3s ease-out; }
+    @keyframes dropdownSlide { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    .glass-dropdown { background: rgba(20, 20, 35, 0.5); backdrop-filter: blur(30px); border: 0.5px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 8px; }
+    .search-result-item { padding: 12px 16px; border-radius: 12px; cursor: pointer; color: rgba(255, 255, 255, 0.9); transition: all 0.2s ease; }
+    .search-result-item:hover { background: rgba(245, 197, 24, 0.1); }
+    @media (max-width: 900px) { .room-container { grid-template-columns: 1fr; } .chat-section { height: 450px; min-height: auto; } }
+    @media (max-width: 600px) { .input-group { flex-direction: column; } .btn-icon { justify-content: center; } .glow-text { font-size: 22px; } }
 </style>
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -121,171 +190,208 @@
 const socket = io(window.location.origin, { 
     transports: ['polling', 'websocket'],
     upgrade: true,
-    reconnection: true
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000
 });
+
+const roomId = {{ room.id }};
+const currentUsername = '{{ current_user.username }}';
+const chatMessages = document.getElementById('chat-messages');
+const video = document.getElementById('video-player');
+
+let isRemoteAction = false;
+let remoteActionTimer = null;
+let firstMessage = true;
+let typingTimeout = null;
+let isTyping = false;
+let typingUsers = new Set();
+
+socket.emit('join', { room_id: roomId });
+
 // ========== ПРИВЯЗКА СОБЫТИЙ ВИДЕОПЛЕЕРА ==========
 function bindVideoEvents(videoElement) {
-    // Перехват play
     videoElement.addEventListener('play', () => {
         if (!isRemoteAction) {
             socket.emit('play', { room_id: roomId, current_time: videoElement.currentTime });
         }
     });
     
-    // Перехват pause
     videoElement.addEventListener('pause', () => {
         if (!isRemoteAction) {
             socket.emit('pause', { room_id: roomId, current_time: videoElement.currentTime });
         }
     });
     
-    // Перехват seek
     videoElement.addEventListener('seeked', () => {
         if (!isRemoteAction) {
             socket.emit('seek', { room_id: roomId, current_time: videoElement.currentTime });
         }
     });
-    
-    // Заменяем глобальную переменную video
-    window.video = videoElement;
 }
 
-const roomId = {{ room.id }};
-const currentUsername = '{{ current_user.username }}';
-const chatMessages = document.getElementById('chat-messages');
+// Привязываем события к начальному плееру
+bindVideoEvents(video);
 
-let isRemoteAction = false;
-let firstMessage = true;
-let typingTimeout = null;
-let isTyping = false;
-let typingUsers = new Set();
-
-// Текущее видео
-let currentVideo = {
-    ownerId: null,
-    videoId: null,
-    isPlaying: true,
-    currentTime: 0,
-    thumbnailUrl: ''
-};
-
-socket.emit('join', { room_id: roomId });
-
-// ========== ПЛАВНАЯ ЗАГРУЗКА IFRAME ==========
-function loadVideo(ownerId, videoId, startTime = 0, autoPlay = true, thumbnailUrl = '') {
-    isRemoteAction = true;
+// ========== ЧАТ С ИНДИКАТОРОМ ПЕЧАТИ ==========
+function sendMessage() {
+    const input = document.getElementById('message-input');
+    const message = input.value.trim();
     
-    // Показываем превью
-    if (thumbnailUrl) {
-        showThumbnailOverlay(thumbnailUrl, startTime);
+    if (message) {
+        clearTimeout(typingTimeout);
+        isTyping = false;
+        socket.emit('stop_typing', { room_id: roomId });
+        
+        socket.emit('send_message', { room_id: roomId, message: message });
+        input.value = '';
+        input.focus();
+    }
+}
+
+document.getElementById('message-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+});
+
+document.getElementById('message-input').addEventListener('input', () => {
+    if (!isTyping) {
+        isTyping = true;
+        socket.emit('typing', { room_id: roomId });
     }
     
-    fetch('/api/vk_player_url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner_id: ownerId, video_id: videoId, start_time: startTime })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.error) {
-            console.error('Ошибка:', data.error);
-            hideThumbnailOverlay();
-            isRemoteAction = false;
-            return;
-        }
-        
-        currentVideo.ownerId = ownerId;
-        currentVideo.videoId = videoId;
-        currentVideo.currentTime = startTime;
-        currentVideo.isPlaying = autoPlay;
-        
-        const container = document.getElementById('player-container');
-        const newIframe = document.createElement('iframe');
-        newIframe.src = data.player_url;
-        newIframe.width = '100%';
-        newIframe.height = '100%';
-        newIframe.frameBorder = '0';
-        newIframe.allowFullscreen = true;
-        newIframe.style.opacity = '0';
-        newIframe.style.transition = 'opacity 0.3s';
-        
-        newIframe.addEventListener('load', () => {
-            container.innerHTML = '';
-            container.appendChild(newIframe);
-            setTimeout(() => {
-                newIframe.style.opacity = '1';
-                hideThumbnailOverlay();
-                isRemoteAction = false;
-            }, 50);
-        });
-        
-        container.innerHTML = '';
-        container.appendChild(newIframe);
-    })
-    .catch(err => {
-        console.error('Ошибка загрузки:', err);
-        hideThumbnailOverlay();
-        isRemoteAction = false;
-    });
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        isTyping = false;
+        socket.emit('stop_typing', { room_id: roomId });
+    }, 1000);
+});
+
+socket.on('user_typing', (data) => {
+    if (data.username !== currentUsername) {
+        typingUsers.add(data.username);
+        updateTypingDisplay();
+    }
+});
+
+socket.on('user_stop_typing', (data) => {
+    if (data.username !== currentUsername) {
+        typingUsers.delete(data.username);
+        updateTypingDisplay();
+    }
+});
+
+function updateTypingDisplay() {
+    let typingEl = document.getElementById('typing-indicator');
+    
+    if (typingUsers.size === 0) {
+        if (typingEl) typingEl.remove();
+        return;
+    }
+    
+    if (!typingEl) {
+        typingEl = document.createElement('div');
+        typingEl.id = 'typing-indicator';
+        typingEl.className = 'typing-indicator';
+        chatMessages.appendChild(typingEl);
+    }
+    
+    const usersArray = Array.from(typingUsers);
+    let text = '';
+    
+    if (usersArray.length === 1) {
+        text = `${usersArray[0]} печатает`;
+    } else if (usersArray.length === 2) {
+        text = `${usersArray[0]} и ${usersArray[1]} печатают`;
+    } else {
+        text = `${usersArray.length} человека печатают`;
+    }
+    
+    typingEl.innerHTML = `
+        <span class="typing-text">${text}</span>
+        <span class="typing-dots">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+        </span>
+    `;
+    
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-function showThumbnailOverlay(imageUrl, time) {
-    const container = document.getElementById('player-container');
-    hideThumbnailOverlay();
+socket.on('new_message', (data) => {
+    typingUsers.delete(data.username);
+    updateTypingDisplay();
     
-    const overlay = document.createElement('div');
-    overlay.id = 'thumbnail-overlay';
-    overlay.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; background:#000; z-index:10; display:flex; align-items:center; justify-content:center';
+    if (firstMessage) {
+        chatMessages.innerHTML = '';
+        firstMessage = false;
+    }
     
-    const img = document.createElement('img');
-    img.src = imageUrl;
-    img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain';
+    const messageEl = document.createElement('div');
+    messageEl.className = 'chat-message' + (data.username === currentUsername ? ' own' : '');
     
-    const loader = document.createElement('div');
-    loader.style.cssText = 'position:absolute; top:50%; left:50%; width:40px; height:40px; border:3px solid rgba(255,255,255,0.3); border-top:3px solid #f5c518; border-radius:50%; animation:spin 1s linear infinite';
+    messageEl.innerHTML = `
+        <div class="message-header">
+            <span class="message-username">${escapeHtml(data.username)}</span>
+            <span class="message-time">${data.timestamp}</span>
+        </div>
+        <div class="message-text">${escapeHtml(data.message)}</div>
+    `;
     
-    overlay.appendChild(img);
-    overlay.appendChild(loader);
-    container.style.position = 'relative';
-    container.appendChild(overlay);
+    chatMessages.appendChild(messageEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+});
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
-function hideThumbnailOverlay() {
-    const overlay = document.getElementById('thumbnail-overlay');
-    if (overlay) overlay.remove();
-}
-
-// ========== УПРАВЛЕНИЕ ==========
+// ========== УПРАВЛЕНИЕ ВИДЕО ==========
 function playVideo() {
-    if (!currentVideo.ownerId || !currentVideo.videoId) return;
-    if (!isRemoteAction) {
-        socket.emit('play', { room_id: roomId, current_time: currentVideo.currentTime });
+    const vid = document.getElementById('video-player');
+    if (vid) {
+        vid.play();
+        socket.emit('play', { room_id: roomId, current_time: vid.currentTime });
     }
 }
 
 function pauseVideo() {
-    if (!currentVideo.ownerId || !currentVideo.videoId) return;
-    if (!isRemoteAction) {
-        socket.emit('pause', { room_id: roomId, current_time: currentVideo.currentTime });
+    const vid = document.getElementById('video-player');
+    if (vid) {
+        vid.pause();
+        socket.emit('pause', { room_id: roomId, current_time: vid.currentTime });
     }
 }
 
 function changeVideo() {
     const url = document.getElementById('video-url').value;
     if (url) {
-        const oidMatch = url.match(/oid=(-?\d+)/);
-        const idMatch = url.match(/id=(\d+)/);
-        if (oidMatch && idMatch) {
-            loadVideo(oidMatch[1], idMatch[1], 0, true);
-            socket.emit('change_video', { room_id: roomId, owner_id: oidMatch[1], video_id: idMatch[1] });
-        }
+        isRemoteAction = true;
+        
+        const videoWrapper = document.querySelector('.video-wrapper');
+        videoWrapper.innerHTML = `
+            <video id="video-player" controls class="glass-video">
+                <source src="${url}" type="video/mp4">
+            </video>
+            <div class="video-overlay"></div>
+        `;
+        
+        const newVideo = document.getElementById('video-player');
+        bindVideoEvents(newVideo);
+        
+        newVideo.addEventListener('loadedmetadata', () => {
+            newVideo.play().catch(e => {});
+        });
+        
+        socket.emit('change_video', { room_id: roomId, video_url: url });
+        setTimeout(() => { isRemoteAction = false; }, 500);
     }
 }
 
-// ========== ПОИСК VK ==========
-// ========== ПОИСК VK ==========
 // ========== ПОИСК ВИДЕО (KODIK) ==========
-window.searchVK = function() {
+window.searchVideo = function() {
     const query = document.getElementById('search-query').value;
     if (!query.trim()) return;
     
@@ -316,19 +422,20 @@ window.searchVK = function() {
             item.onclick = () => {
                 isRemoteAction = true;
                 
-                // Создаём обычный video-плеер с прямой ссылкой
                 const videoWrapper = document.querySelector('.video-wrapper');
                 videoWrapper.innerHTML = `
                     <video id="video-player" controls class="glass-video">
                         <source src="${videoItem.video_url}" type="video/mp4">
                     </video>
+                    <div class="video-overlay"></div>
                 `;
                 
-                // Переназначаем переменную video на новый элемент
                 const newVideo = document.getElementById('video-player');
-                
-                // Перепривязываем события синхронизации
                 bindVideoEvents(newVideo);
+                
+                newVideo.addEventListener('loadedmetadata', () => {
+                    newVideo.play().catch(e => {});
+                });
                 
                 socket.emit('change_video', { room_id: roomId, video_url: videoItem.video_url });
                 resultsDiv.style.display = 'none';
@@ -352,55 +459,72 @@ window.searchVK = function() {
     });
 };
 
-// ========== WEBSOCKET ==========
+// Оставляем старую функцию для обратной совместимости
+window.searchVK = window.searchVideo;
+
+// ========== СИНХРОНИЗАЦИЯ ==========
 socket.on('play_sync', (data) => {
-    loadVideo(currentVideo.ownerId, currentVideo.videoId, data.current_time, true, currentVideo.thumbnailUrl);
+    isRemoteAction = true;
+    clearTimeout(remoteActionTimer);
+    
+    const vid = document.getElementById('video-player');
+    if (vid) {
+        if (Math.abs(vid.currentTime - data.current_time) > 0.5) {
+            vid.currentTime = data.current_time;
+        }
+        vid.play().catch(e => {});
+    }
+    
+    remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
 });
 
 socket.on('pause_sync', (data) => {
-    loadVideo(currentVideo.ownerId, currentVideo.videoId, data.current_time, false, currentVideo.thumbnailUrl);
+    isRemoteAction = true;
+    clearTimeout(remoteActionTimer);
+    
+    const vid = document.getElementById('video-player');
+    if (vid) {
+        vid.currentTime = data.current_time;
+        vid.pause();
+    }
+    
+    remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
 });
 
 socket.on('seek_sync', (data) => {
-    loadVideo(currentVideo.ownerId, currentVideo.videoId, data.current_time, currentVideo.isPlaying, currentVideo.thumbnailUrl);
+    isRemoteAction = true;
+    clearTimeout(remoteActionTimer);
+    
+    const vid = document.getElementById('video-player');
+    if (vid) {
+        vid.currentTime = data.current_time;
+        if (vid.paused) {
+            vid.play().catch(e => {});
+        }
+    }
+    
+    remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
 });
 
 socket.on('video_change_sync', (data) => {
-    currentVideo.ownerId = data.owner_id;
-    currentVideo.videoId = data.video_id;
-    loadVideo(data.owner_id, data.video_id, 0, true);
-});
-
-// ========== ЧАТ ==========
-function sendMessage() {
-    const input = document.getElementById('message-input');
-    const message = input.value.trim();
-    if (message) {
-        socket.emit('send_message', { room_id: roomId, message: message });
-        input.value = '';
-    }
-}
-
-document.getElementById('message-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-});
-
-socket.on('new_message', (data) => {
-    if (firstMessage) {
-        chatMessages.innerHTML = '';
-        firstMessage = false;
-    }
-    const el = document.createElement('div');
-    el.className = 'chat-message' + (data.username === currentUsername ? ' own' : '');
-    el.innerHTML = `
-        <div class="message-header">
-            <span class="message-username">${data.username}</span>
-            <span class="message-time">${data.timestamp}</span>
-        </div>
-        <div class="message-text">${data.message}</div>
+    isRemoteAction = true;
+    clearTimeout(remoteActionTimer);
+    
+    const videoWrapper = document.querySelector('.video-wrapper');
+    videoWrapper.innerHTML = `
+        <video id="video-player" controls class="glass-video">
+            <source src="${data.video_url}" type="video/mp4">
+        </video>
+        <div class="video-overlay"></div>
     `;
-    chatMessages.appendChild(el);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    const newVideo = document.getElementById('video-player');
+    bindVideoEvents(newVideo);
+    
+    newVideo.addEventListener('loadedmetadata', () => {
+        newVideo.play().catch(e => {});
+        remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
+    });
 });
 
 socket.on('connect', () => {
