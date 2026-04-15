@@ -11,6 +11,8 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite, ChatMessage
+from kodik_parser import KodikVideoParser
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -56,56 +58,20 @@ def save_user_data(username, email, password_hash):
 VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 
 # ==================== VK VIDEO SEARCH ====================
-@app.route('/api/search_vk', methods=['POST'])
+
+@app.route('/api/search_video', methods=['POST'])
 @login_required
-def search_vk():
+def search_video():
     data = request.get_json()
     query = data.get('query', '').strip()
     
     if not query:
         return jsonify({'error': 'Empty query'}), 400
     
-    if not VK_ACCESS_TOKEN:
-        return jsonify({'error': 'VK token not configured'}), 500
+    parser = KodikVideoParser()
+    results = parser.search(query)
     
-    try:
-        # Запрос к VK API
-        response = requests.get('https://api.vk.com/method/video.search', params={
-            'q': query,
-            'count': 10,
-            'adult': 0,
-            'hd': 1,
-            'extended': 1,
-            'access_token': VK_ACCESS_TOKEN,
-            'v': '5.199'
-        }, timeout=10)
-        
-        data = response.json()
-        
-        if 'error' in data:
-            return jsonify({'error': data['error'].get('error_msg', 'VK API error')}), 500
-        
-        items = data.get('response', {}).get('items', [])
-        results = []
-        
-        for item in items:
-            # Берём ссылку на встраиваемый плеер
-            player_url = item.get('player')
-            
-            if player_url:
-                results.append({
-                    'title': item['title'],
-                    'video_url': player_url,  # ← Это iframe-плеер VK
-                    'duration': item.get('duration', 0),
-                    'views': item.get('views', 0),
-                    'thumbnail': item.get('image', [{}])[-1].get('url', '') if item.get('image') else ''
-                })
-        
-        return jsonify({'results': results})
-        
-    except Exception as e:
-        print(f"VK API error: {e}")
-        return jsonify({'error': str(e)}), 500
+    return jsonify({'results': results})
 
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 def generate_room_code():
