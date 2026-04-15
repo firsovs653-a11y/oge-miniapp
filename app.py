@@ -12,7 +12,7 @@ from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite, ChatMessage
 from kodik_parser import KodikVideoParser
-from animego_parser import AnimeGoParser
+from aniliberty_parser import AniLibertyParser
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -67,11 +67,14 @@ def search_video():
     query = data.get('query', '').strip()
     
     if not query:
-        return jsonify({'error': 'Empty query'}), 400
+        return jsonify({'error': 'Пустой запрос'}), 400
     
-    parser = AnimeGoParser()
+    parser = AniLibertyParser()
     results = parser.search(query)
     
+    if not results:
+        return jsonify({'error': 'Ничего не найдено'}), 404
+        
     return jsonify({'results': results})
 
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
