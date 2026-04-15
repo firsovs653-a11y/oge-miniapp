@@ -12,7 +12,7 @@ from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite, ChatMessage
 from kodik_parser import KodikVideoParser
-
+from animego_parser import AnimeGoParser
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -59,6 +59,7 @@ VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 
 # ==================== VK VIDEO SEARCH ====================
 
+
 @app.route('/api/search_video', methods=['POST'])
 @login_required
 def search_video():
@@ -68,7 +69,7 @@ def search_video():
     if not query:
         return jsonify({'error': 'Empty query'}), 400
     
-    parser = KodikVideoParser()
+    parser = AnimeGoParser()
     results = parser.search(query)
     
     return jsonify({'results': results})
