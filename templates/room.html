@@ -595,260 +595,209 @@
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
-
 const socket = io(window.location.origin, { 
     transports: ['polling', 'websocket'],
     upgrade: true,
-    rememberUpgrade: true,
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000
+    reconnection: true
 });
-    const roomId = {{ room.id }};
-    const video = document.getElementById('video-player');
-    const currentUsername = '{{ current_user.username }}';
-    const chatMessages = document.getElementById('chat-messages');
-    
-    let isRemoteAction = false;
-    let remoteActionTimer = null;
-    let firstMessage = true;
-    let typingTimeout = null;
-    let isTyping = false;
-    let typingUsers = new Set();
-    
-    socket.emit('join', { room_id: roomId });
-    
-    // ========== ЧАТ С ИНДИКАТОРОМ ПЕЧАТИ ==========
-    function sendMessage() {
-        const input = document.getElementById('message-input');
-        const message = input.value.trim();
-        
-        if (message) {
-            clearTimeout(typingTimeout);
-            isTyping = false;
-            socket.emit('stop_typing', { room_id: roomId });
-            
-            socket.emit('send_message', { room_id: roomId, message: message });
-            input.value = '';
-            input.focus();
-        }
+
+const roomId = {{ room.id }};
+const currentUsername = '{{ current_user.username }}';
+const chatMessages = document.getElementById('chat-messages');
+
+let isRemoteAction = false;
+let firstMessage = true;
+let typingTimeout = null;
+let isTyping = false;
+let typingUsers = new Set();
+
+// Текущее состояние видео
+let currentVideo = {
+    ownerId: null,
+    videoId: null,
+    isPlaying: true,
+    currentTime: 0,
+    thumbnailUrl: ''
+};
+
+socket.emit('join', { room_id: roomId });
+
+// ========== ПЛАВНАЯ ПЕРЕЗАГРУЗКА С ПРЕВЬЮ ==========
+function loadVideo(ownerId, videoId, startTime = 0, autoPlay = true, thumbnailUrl = '') {
+    // 1. Показываем превью (если есть), чтобы скрыть перезагрузку
+    if (thumbnailUrl) {
+        showThumbnailOverlay(thumbnailUrl, startTime);
     }
     
-    document.getElementById('message-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendMessage();
-        }
-    });
-    
-    document.getElementById('message-input').addEventListener('input', () => {
-        if (!isTyping) {
-            isTyping = true;
-            socket.emit('typing', { room_id: roomId });
-        }
-        
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => {
-            isTyping = false;
-            socket.emit('stop_typing', { room_id: roomId });
-        }, 1000);
-    });
-    
-    socket.on('user_typing', (data) => {
-        if (data.username !== currentUsername) {
-            showTypingIndicator(data.username);
-        }
-    });
-    
-    socket.on('user_stop_typing', (data) => {
-        if (data.username !== currentUsername) {
-            hideTypingIndicator(data.username);
-        }
-    });
-    
-    function showTypingIndicator(username) {
-        typingUsers.add(username);
-        updateTypingDisplay();
-    }
-    
-    function hideTypingIndicator(username) {
-        typingUsers.delete(username);
-        updateTypingDisplay();
-    }
-    
-    function updateTypingDisplay() {
-        let typingEl = document.getElementById('typing-indicator');
-        
-        if (typingUsers.size === 0) {
-            if (typingEl) typingEl.remove();
+    // 2. Запрашиваем новый URL плеера
+    fetch('/api/vk_player_url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner_id: ownerId, video_id: videoId, start_time: startTime })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) {
+            console.error('❌ Ошибка получения URL:', data.error);
+            hideThumbnailOverlay();
             return;
         }
         
-        if (!typingEl) {
-            typingEl = document.createElement('div');
-            typingEl.id = 'typing-indicator';
-            typingEl.className = 'typing-indicator';
-            chatMessages.appendChild(typingEl);
-        }
+        currentVideo.ownerId = ownerId;
+        currentVideo.videoId = videoId;
+        currentVideo.currentTime = startTime;
+        currentVideo.isPlaying = autoPlay;
         
-        const usersArray = Array.from(typingUsers);
-        let text = '';
+        // 3. Создаём новый iframe в фоне
+        const newIframe = document.createElement('iframe');
+        newIframe.src = data.player_url;
+        newIframe.width = '100%';
+        newIframe.height = '100%';
+        newIframe.frameBorder = '0';
+        newIframe.allowFullscreen = true;
+        newIframe.id = 'vk-player';
+        newIframe.style.position = 'absolute';
+        newIframe.style.top = '0';
+        newIframe.style.left = '0';
+        newIframe.style.opacity = '0'; // Начинаем невидимым
+        newIframe.style.transition = 'opacity 0.3s ease';
         
-        if (usersArray.length === 1) {
-            text = `${usersArray[0]} печатает`;
-        } else if (usersArray.length === 2) {
-            text = `${usersArray[0]} и ${usersArray[1]} печатают`;
-        } else {
-            text = `${usersArray.length} человека печатают`;
-        }
-        
-        typingEl.innerHTML = `
-            <span class="typing-text">${text}</span>
-            <span class="typing-dots">
-                <span class="dot"></span>
-                <span class="dot"></span>
-                <span class="dot"></span>
-            </span>
-        `;
-        
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-    
-    socket.on('new_message', (data) => {
-        hideTypingIndicator(data.username);
-        
-        if (firstMessage) {
-            chatMessages.innerHTML = '';
-            firstMessage = false;
-        }
-        
-        const messageEl = document.createElement('div');
-        messageEl.className = 'chat-message' + (data.username === currentUsername ? ' own' : '');
-        
-        messageEl.innerHTML = `
-            <div class="message-header">
-                <span class="message-username">${escapeHtml(data.username)}</span>
-                <span class="message-time">${data.timestamp}</span>
-            </div>
-            <div class="message-text">${escapeHtml(data.message)}</div>
-        `;
-        
-        chatMessages.appendChild(messageEl);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    });
-    
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    // ========== УПРАВЛЕНИЕ ВИДЕО ==========
-    function playVideo() {
-        video.play();
-        socket.emit('play', { room_id: roomId, current_time: video.currentTime });
-    }
-    
-    function pauseVideo() {
-        video.pause();
-        socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
-    }
-    
-    function changeVideo() {
-    const url = document.getElementById('video-url').value;
-    if (url) {
-        isRemoteAction = true;
-        
-        // Если это ссылка на плеер VK (содержит video_ext.php)
-        if (url.includes('video_ext.php')) {
-            // Создаём iframe
+        // 4. Когда iframe загрузится — показываем его и убираем превью
+        newIframe.addEventListener('load', () => {
             const videoWrapper = document.querySelector('.video-wrapper');
-            videoWrapper.innerHTML = `<iframe src="${url}" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>`;
-        } else {
-            // Обычное MP4 видео
-            video.src = url;
-            video.load();
-            video.addEventListener('loadedmetadata', function onLoaded() {
-                video.removeEventListener('loadedmetadata', onLoaded);
-                video.play().catch(e => {});
-            });
-        }
+            const oldIframe = document.getElementById('vk-player');
+            
+            // Удаляем старый iframe
+            if (oldIframe) oldIframe.remove();
+            
+            // Вставляем новый
+            videoWrapper.appendChild(newIframe);
+            
+            // Плавно показываем
+            setTimeout(() => {
+                newIframe.style.opacity = '1';
+                hideThumbnailOverlay();
+            }, 50);
+        });
         
-        socket.emit('change_video', { room_id: roomId, video_url: url });
+        // Вставляем в DOM (но он пока невидим)
+        document.querySelector('.video-wrapper').appendChild(newIframe);
+        
         setTimeout(() => { isRemoteAction = false; }, 500);
+    });
+}
+
+function showThumbnailOverlay(imageUrl, time) {
+    const wrapper = document.querySelector('.video-wrapper');
+    
+    // Убираем старый оверлей, если есть
+    hideThumbnailOverlay();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'thumbnail-overlay';
+    overlay.style.position = 'absolute';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = '#000';
+    overlay.style.zIndex = '10';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.style.maxWidth = '100%';
+    img.style.maxHeight = '100%';
+    img.style.objectFit = 'contain';
+    img.alt = `Кадр на ${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, '0')}`;
+    
+    const timeLabel = document.createElement('div');
+    timeLabel.style.position = 'absolute';
+    timeLabel.style.bottom = '20px';
+    timeLabel.style.right = '20px';
+    timeLabel.style.backgroundColor = 'rgba(0,0,0,0.7)';
+    timeLabel.style.color = '#fff';
+    timeLabel.style.padding = '6px 12px';
+    timeLabel.style.borderRadius = '20px';
+    timeLabel.style.fontSize = '14px';
+    timeLabel.textContent = `${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, '0')}`;
+    
+    const loader = document.createElement('div');
+    loader.style.position = 'absolute';
+    loader.style.top = '50%';
+    loader.style.left = '50%';
+    loader.style.transform = 'translate(-50%, -50%)';
+    loader.style.width = '40px';
+    loader.style.height = '40px';
+    loader.style.border = '3px solid rgba(255,255,255,0.3)';
+    loader.style.borderTop = '3px solid #f5c518';
+    loader.style.borderRadius = '50%';
+    loader.style.animation = 'spin 1s linear infinite';
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    overlay.appendChild(img);
+    overlay.appendChild(timeLabel);
+    overlay.appendChild(loader);
+    wrapper.style.position = 'relative';
+    wrapper.appendChild(overlay);
+}
+
+function hideThumbnailOverlay() {
+    const overlay = document.getElementById('thumbnail-overlay');
+    if (overlay) overlay.remove();
+}
+
+// ========== УПРАВЛЕНИЕ ПЛЕЕРОМ (ДЕМОКРАТИЧНОЕ) ==========
+function playVideo() {
+    if (!currentVideo.ownerId || !currentVideo.videoId) return;
+    if (!isRemoteAction) {
+        socket.emit('play', { room_id: roomId, current_time: currentVideo.currentTime });
     }
 }
-    
-    // ========== ПЕРЕХВАТ СОБЫТИЙ ==========
-    video.addEventListener('play', () => {
-        if (!isRemoteAction) {
-            socket.emit('play', { room_id: roomId, current_time: video.currentTime });
+
+function pauseVideo() {
+    if (!currentVideo.ownerId || !currentVideo.videoId) return;
+    if (!isRemoteAction) {
+        socket.emit('pause', { room_id: roomId, current_time: currentVideo.currentTime });
+    }
+}
+
+function seekVideo(newTime) {
+    if (!currentVideo.ownerId || !currentVideo.videoId) return;
+    if (!isRemoteAction) {
+        socket.emit('seek', { room_id: roomId, current_time: newTime });
+    }
+}
+
+// Ручной ввод ссылки
+function changeVideo() {
+    const url = document.getElementById('video-url').value;
+    if (url) {
+        const oidMatch = url.match(/oid=(-?\d+)/);
+        const idMatch = url.match(/id=(\d+)/);
+        
+        if (oidMatch && idMatch) {
+            const ownerId = oidMatch[1];
+            const videoId = idMatch[1];
+            
+            loadVideo(ownerId, videoId, 0, true);
+            socket.emit('change_video', { room_id: roomId, owner_id: ownerId, video_id: videoId });
         }
-    });
-    
-    video.addEventListener('pause', () => {
-        if (!isRemoteAction) {
-            socket.emit('pause', { room_id: roomId, current_time: video.currentTime });
-        }
-    });
-    
-    video.addEventListener('seeked', () => {
-        if (!isRemoteAction) {
-            socket.emit('seek', { room_id: roomId, current_time: video.currentTime });
-        }
-    });
-    
-    // ========== СИНХРОНИЗАЦИЯ ==========
-    socket.on('play_sync', (data) => {
-        isRemoteAction = true;
-        clearTimeout(remoteActionTimer);
-        
-        if (Math.abs(video.currentTime - data.current_time) > 0.5) {
-            video.currentTime = data.current_time;
-        }
-        video.play().catch(e => {});
-        
-        remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
-    });
-    
-    socket.on('pause_sync', (data) => {
-        isRemoteAction = true;
-        clearTimeout(remoteActionTimer);
-        
-        video.currentTime = data.current_time;
-        video.pause();
-        
-        remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
-    });
-    
-    socket.on('seek_sync', (data) => {
-        isRemoteAction = true;
-        clearTimeout(remoteActionTimer);
-        
-        video.currentTime = data.current_time;
-        
-        if (video.paused) {
-            video.play().catch(e => {});
-        }
-        
-        remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
-    });
-    
-    socket.on('video_change_sync', (data) => {
-        isRemoteAction = true;
-        clearTimeout(remoteActionTimer);
-        
-        video.src = data.video_url;
-        video.load();
-        
-        video.addEventListener('loadedmetadata', function onLoaded() {
-            video.removeEventListener('loadedmetadata', onLoaded);
-            video.play().catch(e => {});
-            remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
-        });
-    });
-    
-    // ========== ПОИСК VK ==========
-    window.searchVK = function() {
+    }
+}
+
+// ========== ПОИСК VK ==========
+window.searchVK = function() {
     const query = document.getElementById('search-query').value;
     if (!query.trim()) return;
     
@@ -877,25 +826,189 @@ const socket = io(window.location.origin, {
             const item = document.createElement('div');
             item.className = 'search-result-item';
             item.onclick = () => {
-                isRemoteAction = true;
+                const url = videoItem.video_url;
+                const oidMatch = url.match(/oid=(-?\d+)/);
+                const idMatch = url.match(/id=(\d+)/);
                 
-                // Создаём iframe для плеера VK
-                const videoWrapper = document.querySelector('.video-wrapper');
-                videoWrapper.innerHTML = `<iframe src="${videoItem.video_url}" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>`;
+                if (oidMatch && idMatch) {
+                    const ownerId = oidMatch[1];
+                    const videoId = idMatch[1];
+                    const thumbnail = videoItem.thumbnail || '';
+                    
+                    loadVideo(ownerId, videoId, 0, true, thumbnail);
+                    currentVideo.thumbnailUrl = thumbnail;
+                    
+                    socket.emit('change_video', { 
+                        room_id: roomId, 
+                        owner_id: ownerId, 
+                        video_id: videoId 
+                    });
+                }
                 
-                socket.emit('change_video', { room_id: roomId, video_url: videoItem.video_url });
                 resultsDiv.style.display = 'none';
-                setTimeout(() => { isRemoteAction = false; }, 500);
             };
-            item.innerHTML = `<strong>${videoItem.title}</strong><br><small>👁 ${videoItem.views} • ⏱ ${Math.floor(videoItem.duration / 60)}:${String(videoItem.duration % 60).padStart(2, '0')}</small>`;
+            
+            const minutes = Math.floor(videoItem.duration / 60);
+            const seconds = String(videoItem.duration % 60).padStart(2, '0');
+            item.innerHTML = `
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img src="${videoItem.thumbnail}" style="width:50px; height:35px; object-fit:cover; border-radius:4px;">
+                    <div>
+                        <strong>${videoItem.title}</strong><br>
+                        <small>👁 ${videoItem.views} • ⏱ ${minutes}:${seconds}</small>
+                    </div>
+                </div>
+            `;
             resultsDiv.appendChild(item);
         });
     });
 };
+
+// ========== WEBSOCKET СОБЫТИЯ ==========
+socket.on('play_sync', (data) => {
+    isRemoteAction = true;
+    loadVideo(currentVideo.ownerId, currentVideo.videoId, data.current_time, true, currentVideo.thumbnailUrl);
+    setTimeout(() => { isRemoteAction = false; }, 500);
+});
+
+socket.on('pause_sync', (data) => {
+    isRemoteAction = true;
+    loadVideo(currentVideo.ownerId, currentVideo.videoId, data.current_time, false, currentVideo.thumbnailUrl);
+    setTimeout(() => { isRemoteAction = false; }, 500);
+});
+
+socket.on('seek_sync', (data) => {
+    isRemoteAction = true;
+    loadVideo(currentVideo.ownerId, currentVideo.videoId, data.current_time, currentVideo.isPlaying, currentVideo.thumbnailUrl);
+    setTimeout(() => { isRemoteAction = false; }, 500);
+});
+
+socket.on('video_change_sync', (data) => {
+    isRemoteAction = true;
+    currentVideo.ownerId = data.owner_id;
+    currentVideo.videoId = data.video_id;
+    loadVideo(data.owner_id, data.video_id, 0, true);
+    setTimeout(() => { isRemoteAction = false; }, 500);
+});
+
+// ========== ЧАТ ==========
+function sendMessage() {
+    const input = document.getElementById('message-input');
+    const message = input.value.trim();
     
-    socket.on('connect', () => {
-        console.log('✅ WebSocket connected');
-        socket.emit('join', { room_id: roomId });
-    });
+    if (message) {
+        clearTimeout(typingTimeout);
+        isTyping = false;
+        socket.emit('stop_typing', { room_id: roomId });
+        
+        socket.emit('send_message', { room_id: roomId, message: message });
+        input.value = '';
+        input.focus();
+    }
+}
+
+document.getElementById('message-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+});
+
+document.getElementById('message-input').addEventListener('input', () => {
+    if (!isTyping) {
+        isTyping = true;
+        socket.emit('typing', { room_id: roomId });
+    }
+    
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        isTyping = false;
+        socket.emit('stop_typing', { room_id: roomId });
+    }, 1000);
+});
+
+socket.on('user_typing', (data) => {
+    if (data.username !== currentUsername) {
+        typingUsers.add(data.username);
+        updateTypingDisplay();
+    }
+});
+
+socket.on('user_stop_typing', (data) => {
+    if (data.username !== currentUsername) {
+        typingUsers.delete(data.username);
+        updateTypingDisplay();
+    }
+});
+
+function updateTypingDisplay() {
+    let typingEl = document.getElementById('typing-indicator');
+    
+    if (typingUsers.size === 0) {
+        if (typingEl) typingEl.remove();
+        return;
+    }
+    
+    if (!typingEl) {
+        typingEl = document.createElement('div');
+        typingEl.id = 'typing-indicator';
+        typingEl.className = 'typing-indicator';
+        chatMessages.appendChild(typingEl);
+    }
+    
+    const usersArray = Array.from(typingUsers);
+    let text = '';
+    
+    if (usersArray.length === 1) {
+        text = `${usersArray[0]} печатает`;
+    } else if (usersArray.length === 2) {
+        text = `${usersArray[0]} и ${usersArray[1]} печатают`;
+    } else {
+        text = `${usersArray.length} человека печатают`;
+    }
+    
+    typingEl.innerHTML = `
+        <span class="typing-text">${text}</span>
+        <span class="typing-dots">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+        </span>
+    `;
+    
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+socket.on('new_message', (data) => {
+    typingUsers.delete(data.username);
+    updateTypingDisplay();
+    
+    if (firstMessage) {
+        chatMessages.innerHTML = '';
+        firstMessage = false;
+    }
+    
+    const messageEl = document.createElement('div');
+    messageEl.className = 'chat-message' + (data.username === currentUsername ? ' own' : '');
+    
+    messageEl.innerHTML = `
+        <div class="message-header">
+            <span class="message-username">${escapeHtml(data.username)}</span>
+            <span class="message-time">${data.timestamp}</span>
+        </div>
+        <div class="message-text">${escapeHtml(data.message)}</div>
+    `;
+    
+    chatMessages.appendChild(messageEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+});
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+socket.on('connect', () => {
+    console.log('✅ WebSocket connected');
+    socket.emit('join', { room_id: roomId });
+});
 </script>
 {% endblock %}
