@@ -754,20 +754,29 @@ const socket = io(window.location.origin, {
     }
     
     function changeVideo() {
-        const url = document.getElementById('video-url').value;
-        if (url) {
-            isRemoteAction = true;
+    const url = document.getElementById('video-url').value;
+    if (url) {
+        isRemoteAction = true;
+        
+        // Если это ссылка на плеер VK (содержит video_ext.php)
+        if (url.includes('video_ext.php')) {
+            // Создаём iframe
+            const videoWrapper = document.querySelector('.video-wrapper');
+            videoWrapper.innerHTML = `<iframe src="${url}" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>`;
+        } else {
+            // Обычное MP4 видео
             video.src = url;
             video.load();
-            
             video.addEventListener('loadedmetadata', function onLoaded() {
                 video.removeEventListener('loadedmetadata', onLoaded);
                 video.play().catch(e => {});
-                socket.emit('change_video', { room_id: roomId, video_url: url });
-                setTimeout(() => { isRemoteAction = false; }, 500);
             });
         }
+        
+        socket.emit('change_video', { room_id: roomId, video_url: url });
+        setTimeout(() => { isRemoteAction = false; }, 500);
     }
+}
     
     // ========== ПЕРЕХВАТ СОБЫТИЙ ==========
     video.addEventListener('play', () => {
@@ -840,51 +849,49 @@ const socket = io(window.location.origin, {
     
     // ========== ПОИСК VK ==========
     window.searchVK = function() {
-        const query = document.getElementById('search-query').value;
-        if (!query.trim()) return;
+    const query = document.getElementById('search-query').value;
+    if (!query.trim()) return;
+    
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = '<div class="search-result-item">⏳ Поиск...</div>';
+    
+    fetch('/api/search_vk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) {
+            resultsDiv.innerHTML = `<div class="search-result-item" style="color: #ff6b6b;">❌ ${data.error}</div>`;
+            return;
+        }
+        if (!data.results || data.results.length === 0) {
+            resultsDiv.innerHTML = '<div class="search-result-item">😔 Ничего не найдено</div>';
+            return;
+        }
         
-        const resultsDiv = document.getElementById('search-results');
-        resultsDiv.style.display = 'block';
-        resultsDiv.innerHTML = '<div class="search-result-item">⏳ Поиск...</div>';
-        
-        fetch('/api/search_vk', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) {
-                resultsDiv.innerHTML = `<div class="search-result-item" style="color: #ff6b6b;">❌ ${data.error}</div>`;
-                return;
-            }
-            if (!data.results || data.results.length === 0) {
-                resultsDiv.innerHTML = '<div class="search-result-item">😔 Ничего не найдено</div>';
-                return;
-            }
-            
-            resultsDiv.innerHTML = '';
-            data.results.forEach(videoItem => {
-                const item = document.createElement('div');
-                item.className = 'search-result-item';
-                item.onclick = () => {
-                    isRemoteAction = true;
-                    video.src = videoItem.video_url;
-                    video.load();
-                    
-                    video.addEventListener('loadedmetadata', function onLoaded() {
-                        video.removeEventListener('loadedmetadata', onLoaded);
-                        video.play().catch(e => {});
-                        socket.emit('change_video', { room_id: roomId, video_url: videoItem.video_url });
-                        resultsDiv.style.display = 'none';
-                        setTimeout(() => { isRemoteAction = false; }, 500);
-                    });
-                };
-                item.innerHTML = `<strong>${videoItem.title}</strong>`;
-                resultsDiv.appendChild(item);
-            });
+        resultsDiv.innerHTML = '';
+        data.results.forEach(videoItem => {
+            const item = document.createElement('div');
+            item.className = 'search-result-item';
+            item.onclick = () => {
+                isRemoteAction = true;
+                
+                // Создаём iframe для плеера VK
+                const videoWrapper = document.querySelector('.video-wrapper');
+                videoWrapper.innerHTML = `<iframe src="${videoItem.video_url}" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>`;
+                
+                socket.emit('change_video', { room_id: roomId, video_url: videoItem.video_url });
+                resultsDiv.style.display = 'none';
+                setTimeout(() => { isRemoteAction = false; }, 500);
+            };
+            item.innerHTML = `<strong>${videoItem.title}</strong><br><small>👁 ${videoItem.views} • ⏱ ${Math.floor(videoItem.duration / 60)}:${String(videoItem.duration % 60).padStart(2, '0')}</small>`;
+            resultsDiv.appendChild(item);
         });
-    };
+    });
+};
     
     socket.on('connect', () => {
         console.log('✅ WebSocket connected');
