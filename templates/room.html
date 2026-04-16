@@ -34,11 +34,10 @@
         
         <!-- Ручной ввод ссылки -->
         <div class="input-group">
-            <input type="text" id="video-url" placeholder="Или вставь прямую ссылку на MP4" class="glass-input">
-            <button onclick="changeVideo()" class="btn btn-success btn-icon">
-                <span>📺</span>
-                <span>Загрузить</span>
-            </button>
+            <input type="text" id="search-query" placeholder="🔍 Найти трек на SoundCloud..." class="glass-input">
+<button onclick="searchMusic()" class="btn btn-primary btn-icon">
+    <span>🎵</span>
+    <span>Найти</span>
         </div>
         
         <!-- Видеоплеер -->
@@ -56,15 +55,15 @@
         
         <!-- Управление -->
         <div class="video-controls">
-            <button onclick="playVideo()" class="btn btn-play btn-icon pulse-animation">
-                <span>▶</span>
-                <span>Play</span>
-            </button>
-            <button onclick="pauseVideo()" class="btn btn-pause btn-icon">
-                <span>⏸</span>
-                <span>Pause</span>
-            </button>
-        </div>
+    <button onclick="playAudio()" class="btn btn-play btn-icon pulse-animation">
+        <span>▶</span>
+        <span>Play</span>
+    </button>
+    <button onclick="pauseAudio()" class="btn btn-pause btn-icon">
+        <span>⏸</span>
+        <span>Pause</span>
+    </button>
+</div>
         
         <!-- Участники -->
         <div class="members-section">
