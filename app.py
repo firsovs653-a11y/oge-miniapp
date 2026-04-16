@@ -93,16 +93,16 @@ class SoundCloudParser:
             return None
 
         def search(self, query, limit=10):
-        """Ищет треки на SoundCloud"""
-        print(f"🔍 Поиск SoundCloud: '{query}'")
+            """Ищет треки на SoundCloud"""
+            print(f"🔍 Поиск SoundCloud: '{query}'")
     
-        url = f"{self.base_url}/search/tracks"
-        params = {
-            "q": query,
-            "limit": limit,
-            "offset": 0,
-            "linked_partitioning": 1,
-            "app_version": "1740473827"
+            url = f"{self.base_url}/search/tracks"
+            params = {
+                "q": query,
+                "limit": limit,
+                "offset": 0,
+                "linked_partitioning": 1,
+                "app_version": "1740473827"
         }
     
         data = self._request_with_fallback(url, params)
