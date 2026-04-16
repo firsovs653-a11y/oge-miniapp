@@ -100,7 +100,7 @@ VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 
 # ==================== ТЕСТОВЫЕ ТРЕКИ ====================
 # ==================== ПАРСЕР SOUNDCLOUD ====================
-import os  # ← добавьте в начало файла, если ещё нет
+  # ← добавьте в начало файла, если ещё нет
 
 class SoundCloudParser:
     def __init__(self):
@@ -108,7 +108,6 @@ class SoundCloudParser:
         self.app_version = "1776236574"
         self.base_url = "https://api-v2.soundcloud.com"
         
-        # Заголовки, которые точно работают
         self.headers = {
             "Authorization": "OAuth 2-321262-1413040017-RgNQZzVGdriAP",
             "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36",
@@ -117,12 +116,11 @@ class SoundCloudParser:
             "Referer": "https://soundcloud.com/"
         }
         
-        # Прокси больше не используем
         self.proxies = None
 
     def search(self, query, limit=10):
         print(f"🔍 Поиск SoundCloud: '{query}'")
-    
+
         url = f"{self.base_url}/search"
         params = {
             "q": query,
@@ -133,38 +131,31 @@ class SoundCloudParser:
             "app_version": self.app_version,
             "app_locale": "en"
         }
-    
+
         try:
             resp = requests.get(url, params=params, headers=self.headers, timeout=10)
-        
+
             if resp.status_code != 200:
                 print(f"❌ Ошибка API: {resp.status_code}")
                 return self._fallback_tracks()
-        
+
             data = resp.json()
             results = []
-        
+
             for track in data.get("collection", []):
-                # Ищем progressive поток (MP3)
                 stream_url = None
                 media = track.get("media", {})
                 transcodings = media.get("transcodings", [])
-            
-                # Приоритет: progressive > hls
+
+                # Ищем ТОЛЬКО progressive MP3
                 for t in transcodings:
-                    protocol = t.get("format", {}).get("protocol")
-                    if protocol == "progressive":
+                    if t.get("format", {}).get("protocol") == "progressive":
                         stream_url = t.get("url")
                         break
-            
-                # Если нет progressive, берём первый hls
-                if not stream_url and transcodings:
-                    stream_url = transcodings[0].get("url")
-            
+
                 if stream_url:
-                    # Добавляем client_id и параметры для запроса
-                    audio_url = f"{stream_url}?client_id={self.client_id}&app_version={self.app_version}"
-                
+                    audio_url = f"{stream_url}?client_id={self.client_id}"
+                    
                     results.append({
                         'id': track.get('id'),
                         'title': track.get('title', 'Без названия')[:100],
@@ -173,10 +164,10 @@ class SoundCloudParser:
                         'duration': track.get('duration', 0) // 1000,
                         'thumbnail': track.get('artwork_url') or ''
                     })
-        
-            print(f"✅ Найдено треков: {len(results)}")
+
+            print(f"✅ Найдено MP3 треков: {len(results)}")
             return results if results else self._fallback_tracks()
-        
+
         except Exception as e:
             print(f"❌ Ошибка поиска: {e}")
             return self._fallback_tracks()
