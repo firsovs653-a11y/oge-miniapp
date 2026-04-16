@@ -81,56 +81,52 @@ class SoundCloudParser:
         self.proxy_url = os.environ.get('HTTP_PROXY')
         self.proxies = {'http': self.proxy_url, 'https': self.proxy_url} if self.proxy_url else None
 
-        def _request_with_fallback(self, url, params):
-            for client_id in self.client_ids:
-                try:
-                    params["client_id"] = client_id
-                    resp = requests.get(url, params=params, headers=self.headers, proxies=self.proxies, timeout=10)
-                    if resp.status_code == 200 and resp.text.strip():
-                        return resp.json()
-                except:
-                    continue
-            return None
+    def _request_with_fallback(self, url, params):
+        for client_id in self.client_ids:
+            try:
+                params["client_id"] = client_id
+                resp = requests.get(url, params=params, headers=self.headers, proxies=self.proxies, timeout=10)
+                if resp.status_code == 200 and resp.text.strip():
+                    return resp.json()
+            except:
+                continue
+        return None
 
-        def search(self, query, limit=10):
-            """Ищет треки на SoundCloud"""
-            print(f"🔍 Поиск SoundCloud: '{query}'")
-    
-            url = f"{self.base_url}/search/tracks"
-            params = {
-                "q": query,
-                "limit": limit,
-                "offset": 0,
-                "linked_partitioning": 1,
-                "app_version": "1740473827"
-            }
-    
-            data = self._request_with_fallback(url, params)
-    
-            if not data:
-                print("❌ SoundCloud API недоступен, возвращаю тестовые треки")
-                return self._fallback_tracks()
-    
-    # Отладка: печатаем, что пришло
+    def search(self, query, limit=10):
+        """Ищет треки на SoundCloud"""
+        print(f"🔍 Поиск SoundCloud: '{query}'")
+
+        url = f"{self.base_url}/search/tracks"
+        params = {
+            "q": query,
+            "limit": limit,
+            "offset": 0,
+            "linked_partitioning": 1,
+            "app_version": "1740473827"
+        }
+
+        data = self._request_with_fallback(url, params)
+
+        if not data:
+            print("❌ SoundCloud API недоступен, возвращаю тестовые треки")
+            return self._fallback_tracks()
+
         print(f"📦 API ответ: {len(data.get('collection', []))} треков")
-    
+
         results = []
         for track in data.get("collection", []):
-        # Проверяем разные возможные поля с URL
             stream_url = track.get("stream_url")
             if not stream_url:
-            # Иногда ссылка лежит в media.transcodings
                 media = track.get("media", {})
                 transcodings = media.get("transcodings", [])
                 if transcodings:
                     stream_url = transcodings[0].get("url")
-        
+
             if stream_url:
                 client_id = params.get("client_id", self.client_ids[0])
-            # Если это URL для транскодинга, добавляем client_id
                 if "client_id=" not in stream_url:
                     stream_url = f"{stream_url}?client_id={client_id}"
-            
+
                 results.append({
                     'id': track.get('id'),
                     'title': track.get('title', 'Без названия'),
@@ -139,18 +135,21 @@ class SoundCloudParser:
                     'duration': track.get('duration', 0) // 1000,
                     'thumbnail': self._get_thumbnail(track)
                 })
-    
-    print(f"✅ Найдено треков: {len(results)}")
-    return results if results else self._fallback_tracks()
+
+        print(f"✅ Найдено треков: {len(results)}")
+        return results if results else self._fallback_tracks()
 
     def _get_thumbnail(self, track):
         if track.get('artwork_url'):
             return track['artwork_url'].replace('large', 't500x500')
+        if track.get('user', {}).get('avatar_url'):
+            return track['user']['avatar_url'].replace('large', 't500x500')
         return ''
 
     def _fallback_tracks(self):
         return [
-            {'id': 1, 'title': '🎵 Тестовый трек', 'artist': 'Офлайн', 'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', 'duration': 368, 'thumbnail': ''}
+            {'id': 1, 'title': '🎵 Тестовый трек', 'artist': 'Офлайн', 'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', 'duration': 368, 'thumbnail': ''},
+            {'id': 2, 'title': '🎧 Запасной трек', 'artist': 'Офлайн', 'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', 'duration': 292, 'thumbnail': ''}
         ]
 
 @app.route('/api/search_music', methods=['POST'])
