@@ -237,24 +237,55 @@ window.searchMusic = function() {
         
         resultsDiv.innerHTML = '';
         data.results.forEach(track => {
-            const item = document.createElement('div');
-            item.className = 'search-result-item';
-            item.onclick = () => {
-                if (audio) {
-                    audio.src = track.audio_url;
-                    audio.load();
-                    audio.play();
+    const item = document.createElement('div');
+    item.className = 'search-result-item';
+    item.onclick = () => {
+        const audio = document.getElementById('audio-player');
+        const url = track.audio_url;
+        
+        // Проверяем, HLS это или обычный MP3
+        if (url.includes('.m3u8')) {
+            // HLS поток — используем HLS.js
+            if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+                // Очищаем предыдущий HLS
+                if (window.currentHls) {
+                    window.currentHls.destroy();
                 }
-                if (trackTitle) trackTitle.textContent = track.title;
-                if (trackArtist) trackArtist.textContent = track.artist;
-                if (track.thumbnail) {
-                    trackThumbnail.src = track.thumbnail;
-                    trackThumbnail.style.display = 'block';
-                }
-                
-                socket.emit('change_video', { room_id: roomId, video_url: track.audio_url });
-                resultsDiv.style.display = 'none';
-            };
+                const hls = new Hls();
+                window.currentHls = hls;
+                hls.loadSource(url);
+                hls.attachMedia(audio);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    audio.play().catch(e => console.log('Autoplay blocked:', e));
+                });
+            } else {
+                console.error('HLS не поддерживается');
+                audio.src = url;
+                audio.play().catch(e => {});
+            }
+        } else {
+            // Обычный MP3
+            audio.src = url;
+            audio.load();
+            audio.play().catch(e => console.log('Autoplay blocked:', e));
+        }
+        
+        // Обновляем информацию о треке
+        if (trackTitle) trackTitle.textContent = track.title;
+        if (trackArtist) trackArtist.textContent = track.artist;
+        if (track.thumbnail) {
+            trackThumbnail.src = track.thumbnail;
+            trackThumbnail.style.display = 'block';
+        } else {
+            trackThumbnail.style.display = 'none';
+        }
+        
+        socket.emit('change_video', { room_id: roomId, video_url: url });
+        resultsDiv.style.display = 'none';
+    };
+    
+    // ... остальной код отображения результатов ...
+});
             
             const minutes = Math.floor(track.duration / 60);
             const seconds = String(track.duration % 60).padStart(2, '0');
