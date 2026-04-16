@@ -59,22 +59,12 @@ VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 # ==================== VK VIDEO SEARCH ====================
 
 
-@app.route('/api/search_video', methods=['POST'])
+# ==================== VK API ====================
+VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
+
+# ==================== ПОИСК МУЗЫКИ SOUNDCLOUD ====================
+@app.route('/api/search_music', methods=['POST'])
 @login_required
-def search_video():
-    data = request.get_json()
-    query = data.get('query', '').strip()
-    
-    if not query:
-        return jsonify({'error': 'Пустой запрос'}), 400
-    
-    parser = AniLibertyParser()
-    results = parser.search(query)
-    
-    if not results:
-        return jsonify({'error': 'Ничего не найдено'}), 404
-        
-    return jsonify({'results': results})
 def search_music():
     data = request.get_json()
     query = data.get('query', '').strip()
@@ -82,13 +72,24 @@ def search_music():
     if not query:
         return jsonify({'error': 'Empty query'}), 400
     
-    parser = SoundCloudParser()
-    results = parser.search(query, limit=10)
-    
-    if not results:
-        return jsonify({'results': [], 'message': 'Ничего не найдено'})
-    
-    return jsonify({'results': results})
+    try:
+        parser = SoundCloudParser()
+        results = parser.search(query, limit=10)
+        
+        if not results:
+            return jsonify({'results': [], 'message': 'Ничего не найдено'})
+        
+        return jsonify({'results': results})
+    except Exception as e:
+        print(f"Search error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# ==================== ОСТАВЛЯЕМ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ====================
+@app.route('/api/search_video', methods=['POST'])
+@login_required
+def search_video():
+    """Перенаправляет на поиск музыки"""
+    return search_music()
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 def generate_room_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
