@@ -42,46 +42,75 @@
         
         <!-- Видеоплеер -->
         <!-- Вместо <div class="video-wrapper"> -->
-<div class="audio-player-wrapper glass-card" style="padding: 20px; text-align: center;">
-    <img id="track-thumbnail" src="" style="width: 200px; height: 200px; border-radius: 12px; object-fit: cover; margin-bottom: 15px; display: none;">
-    <div id="track-info" style="margin-bottom: 15px;">
-        <h3 id="track-title" style="color: #fff; margin: 0;">Выберите трек</h3>
-        <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0;"></p>
-    </div>
-    <audio id="audio-player" controls style="width: 100%;">
-        <source id="audio-source" src="" type="audio/mpeg">
-    </audio>
-</div>
-        
-        <!-- Управление -->
-        <div class="video-controls">
-    <button onclick="playAudio()" class="btn btn-play btn-icon pulse-animation">
-        <span>▶</span>
-        <span>Play</span>
-    </button>
-    <button onclick="pauseAudio()" class="btn btn-pause btn-icon">
-        <span>⏸</span>
-        <span>Pause</span>
-    </button>
-</div>
-        
-        <!-- Участники -->
-        <div class="members-section">
-            <h3 class="section-title">
-                <span>👥</span>
-                <span>Участники</span>
-                <span class="member-count">{{ members|length }}</span>
-            </h3>
-            <div class="members-grid">
-                {% for member in members %}
-                <span class="member-tag glass-tag">
-                    <span class="member-avatar">👤</span>
-                    <span>{{ member.user.username }}</span>
-                </span>
-                {% endfor %}
-            </div>
+<!-- Левая колонка - АУДИО -->
+<div class="video-section glass-card animate-in">
+    <div class="section-header">
+        <h1 class="glow-text">🎵 {{ room.name }}</h1>
+        <div class="room-badges">
+            <span class="badge code-badge">
+                <span class="badge-icon">🔑</span>
+                <span>{{ room.code }}</span>
+            </span>
+            <span class="badge creator-badge">
+                <span class="badge-icon">👑</span>
+                <span>{{ room.creator.username }}</span>
+            </span>
         </div>
     </div>
+    
+    <!-- Поиск музыки -->
+    <div class="search-section">
+        <div class="input-group">
+            <input type="text" id="search-query" placeholder="🔍 Найти трек..." class="glass-input">
+            <button onclick="searchMusic()" class="btn btn-primary btn-icon">
+                <span>🎵</span>
+                <span>Найти</span>
+            </button>
+        </div>
+        <div id="search-results" class="search-results glass-dropdown" style="display: none;"></div>
+    </div>
+    
+    <!-- Аудиоплеер -->
+    <div class="audio-player-wrapper" style="padding: 20px; text-align: center;">
+        <img id="track-thumbnail" src="" style="width: 200px; height: 200px; border-radius: 12px; object-fit: cover; margin-bottom: 15px; display: none;">
+        <div id="track-info" style="margin-bottom: 15px;">
+            <h3 id="track-title" style="color: #fff; margin: 0;">Выберите трек</h3>
+            <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0;"></p>
+        </div>
+        <audio id="audio-player" controls style="width: 100%;">
+            <source id="audio-source" src="" type="audio/mpeg">
+        </audio>
+    </div>
+    
+    <!-- Управление -->
+    <div class="video-controls">
+        <button onclick="playAudio()" class="btn btn-play btn-icon pulse-animation">
+            <span>▶</span>
+            <span>Play</span>
+        </button>
+        <button onclick="pauseAudio()" class="btn btn-pause btn-icon">
+            <span>⏸</span>
+            <span>Pause</span>
+        </button>
+    </div>
+    
+    <!-- Участники -->
+    <div class="members-section">
+        <h3 class="section-title">
+            <span>👥</span>
+            <span>Участники</span>
+            <span class="member-count">{{ members|length }}</span>
+        </h3>
+        <div class="members-grid">
+            {% for member in members %}
+            <span class="member-tag glass-tag">
+                <span class="member-avatar">👤</span>
+                <span>{{ member.user.username }}</span>
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
     
     <!-- Правая колонка - чат -->
     <div class="chat-section glass-card animate-in-delay">
