@@ -32,16 +32,14 @@
             <div id="search-results" class="search-results glass-dropdown" style="display: none;"></div>
         </div>
         
-        <!-- Аудиоплеер -->
-        <div class="audio-player-wrapper" style="padding: 20px; text-align: center;">
-            <img id="track-thumbnail" src="" style="width: 200px; height: 200px; border-radius: 12px; object-fit: cover; margin-bottom: 15px; display: none;">
-            <div id="track-info" style="margin-bottom: 15px;">
-                <h3 id="track-title" style="color: #fff; margin: 0;">Выберите трек</h3>
-                <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0;"></p>
-            </div>
-            <audio id="audio-player" controls style="width: 100%;">
-                <source id="audio-source" src="" type="audio/mpeg">
-            </audio>
+        <!-- SoundCloud Widget -->
+        <div id="soundcloud-player" style="width: 100%; margin: 20px 0; border-radius: 12px; overflow: hidden; min-height: 120px;"></div>
+        
+        <!-- Информация о треке -->
+        <div class="track-info-display" style="padding: 10px; text-align: center;">
+            <img id="track-thumbnail" src="" style="width: 100px; height: 100px; border-radius: 8px; object-fit: cover; margin-bottom: 10px; display: none;">
+            <h3 id="track-title" style="color: #fff; margin: 0; font-size: 16px;">Выберите трек</h3>
+            <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0; font-size: 14px;"></p>
         </div>
         
         <!-- Управление -->
@@ -104,7 +102,6 @@
 </div>
 
 <style>
-    /* Весь ваш CSS остаётся без изменений */
     .room-container { display: grid; grid-template-columns: 1fr 380px; gap: 20px; max-width: 1600px; margin: 0 auto; animation: containerFadeIn 0.6s ease-out; }
     @keyframes containerFadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     .animate-in { animation: slideInLeft 0.5s ease-out; }
@@ -177,27 +174,51 @@
     @media (max-width: 600px) { .input-group { flex-direction: column; } .btn-icon { justify-content: center; } .glow-text { font-size: 22px; } }
 </style>
 
+<!-- SoundCloud Widget API -->
+<script src="https://w.soundcloud.com/player/api.js"></script>
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
 <script>
-// SoundCloud Widget
+const socket = io(window.location.origin, { 
+    transports: ['polling', 'websocket'],
+    upgrade: true,
+    reconnection: true
+});
+
+const roomId = {{ room.id }};
+const currentUsername = '{{ current_user.username }}';
+const chatMessages = document.getElementById('chat-messages');
+
+// ========== SOUNDCLOUD WIDGET ==========
 let scWidget = null;
-let currentTrackUrl = null;
+const trackTitle = document.getElementById('track-title');
+const trackArtist = document.getElementById('track-artist');
+const trackThumbnail = document.getElementById('track-thumbnail');
 
-// Инициализация пустого плеера
-const playerDiv = document.getElementById('soundcloud-player');
+let firstMessage = true;
 
-// Функция загрузки трека
-function loadTrack(trackUrl) {
-    if (scWidget) {
-        scWidget.load(trackUrl, { auto_play: true });
-    } else {
-        scWidget = SC.Widget(playerDiv);
-        scWidget.load(trackUrl, { auto_play: true });
-    }
-    currentTrackUrl = trackUrl;
+socket.emit('join', { room_id: roomId });
+
+function playAudio() {
+    if (scWidget) scWidget.play();
 }
 
-// Поиск музыки
+function pauseAudio() {
+    if (scWidget) scWidget.pause();
+}
+
+function loadTrack(permalinkUrl) {
+    const playerDiv = document.getElementById('soundcloud-player');
+    
+    if (scWidget) {
+        scWidget.load(permalinkUrl, { auto_play: true });
+    } else {
+        scWidget = SC.Widget(playerDiv);
+        scWidget.load(permalinkUrl, { auto_play: true });
+    }
+}
+
+// ========== ПОИСК МУЗЫКИ ==========
 window.searchMusic = function() {
     const query = document.getElementById('search-query').value;
     if (!query.trim()) return;
@@ -229,7 +250,7 @@ window.searchMusic = function() {
             
             item.innerHTML = `
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:24px;">🎵</span>
+                    ${track.thumbnail ? `<img src="${track.thumbnail}" style="width:40px; height:40px; border-radius:4px; object-fit:cover;">` : '<span style="font-size:24px;">🎵</span>'}
                     <div style="flex:1;">
                         <strong>${escapeHtml(track.title)}</strong><br>
                         <small>${escapeHtml(track.artist)} • ${minutes}:${seconds}</small>
@@ -238,15 +259,15 @@ window.searchMusic = function() {
             `;
             
             item.onclick = () => {
-                // Загружаем трек в виджет
                 loadTrack(track.permalink_url);
                 
-                // Обновляем информацию
                 if (trackTitle) trackTitle.textContent = track.title;
                 if (trackArtist) trackArtist.textContent = track.artist;
                 if (track.thumbnail) {
                     trackThumbnail.src = track.thumbnail;
                     trackThumbnail.style.display = 'block';
+                } else {
+                    trackThumbnail.style.display = 'none';
                 }
                 
                 resultsDiv.style.display = 'none';
@@ -257,19 +278,47 @@ window.searchMusic = function() {
     });
 };
 
-// Кнопки управления
-function playAudio() {
-    if (scWidget) scWidget.play();
+// ========== ЧАТ ==========
+function sendMessage() {
+    const input = document.getElementById('message-input');
+    const message = input.value.trim();
+    if (message) {
+        socket.emit('send_message', { room_id: roomId, message: message });
+        input.value = '';
+    }
 }
 
-function pauseAudio() {
-    if (scWidget) scWidget.pause();
-}
+document.getElementById('message-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+});
+
+socket.on('new_message', (data) => {
+    if (firstMessage) {
+        chatMessages.innerHTML = '';
+        firstMessage = false;
+    }
+    const el = document.createElement('div');
+    el.className = 'chat-message' + (data.username === currentUsername ? ' own' : '');
+    el.innerHTML = `
+        <div class="message-header">
+            <span class="message-username">${escapeHtml(data.username)}</span>
+            <span class="message-time">${data.timestamp}</span>
+        </div>
+        <div class="message-text">${escapeHtml(data.message)}</div>
+    `;
+    chatMessages.appendChild(el);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+});
 
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
+
+socket.on('connect', () => {
+    console.log('✅ WebSocket connected');
+    socket.emit('join', { room_id: roomId });
+});
 </script>
 {% endblock %}
