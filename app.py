@@ -64,43 +64,99 @@ VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 # ==================== ПОИСК МУЗЫКИ SOUNDCLOUD ====================
 
 # ==================== ТЕСТОВЫЕ ТРЕКИ ====================
-TEST_TRACKS = [
-    {
-        'id': 1,
-        'title': '🎵 Lofi Hip Hop',
-        'artist': 'Тестовый канал',
-        'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-        'duration': 368,
-        'thumbnail': ''
-    },
-    {
-        'id': 2,
-        'title': '🎧 Chill Synthwave',
-        'artist': 'Тестовый канал',
-        'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-        'duration': 292,
-        'thumbnail': ''
-    }
-]
+# ==================== ПАРСЕР SOUNDCLOUD ====================
+class SoundCloudParser:
+    def __init__(self):
+        # Несколько публичных client_id (если один заблокируют — пробуем другой)
+        self.client_ids = [
+            "a3e059563d7f33715b3b5e7e7d7c1e8c",
+            "2t9loNQH90kzJcsFCODdigxfp325aq4z",
+            "iZIs9mchVcX5lhVRyQGGAYlNPVldzAoX"
+        ]
+        self.base_url = "https://api-v2.soundcloud.com"
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "application/json"
+        }
+    
+    def _request_with_fallback(self, url, params):
+        """Пробует разные client_id, пока не получит ответ"""
+        for client_id in self.client_ids:
+            try:
+                params["client_id"] = client_id
+                resp = requests.get(url, params=params, headers=self.headers, timeout=10)
+                
+                if resp.status_code == 200 and resp.text.strip():
+                    return resp.json()
+            except:
+                continue
+        return None
+    
+    def search(self, query, limit=10):
+        """Ищет треки на SoundCloud"""
+        print(f"🔍 Поиск SoundCloud: '{query}'")
+        
+        url = f"{self.base_url}/search/tracks"
+        params = {
+            "q": query,
+            "limit": limit,
+            "app_version": "1740473827"
+        }
+        
+        data = self._request_with_fallback(url, params)
+        
+        if not data:
+            print("❌ SoundCloud API недоступен, возвращаю тестовые треки")
+            return self._fallback_tracks()
+        
+        results = []
+        for track in data.get("collection", []):
+            stream_url = track.get("stream_url")
+            if stream_url:
+                client_id = params.get("client_id", self.client_ids[0])
+                results.append({
+                    'id': track.get('id'),
+                    'title': track.get('title', 'Без названия'),
+                    'artist': track.get('user', {}).get('username', 'Неизвестен'),
+                    'audio_url': f"{stream_url}?client_id={client_id}",
+                    'duration': track.get('duration', 0) // 1000,
+                    'thumbnail': self._get_thumbnail(track)
+                })
+        
+        print(f"✅ Найдено треков: {len(results)}")
+        return results if results else self._fallback_tracks()
+    
+    def _get_thumbnail(self, track):
+        if track.get('artwork_url'):
+            return track['artwork_url'].replace('large', 't500x500')
+        if track.get('user', {}).get('avatar_url'):
+            return track['user']['avatar_url'].replace('large', 't500x500')
+        return ''
+    
+    def _fallback_tracks(self):
+        """Запасные тестовые треки, если API недоступен"""
+        return [
+            {
+                'id': 1,
+                'title': '🎵 Lofi Hip Hop (Офлайн-режим)',
+                'artist': 'Тестовый канал',
+                'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+                'duration': 368,
+                'thumbnail': ''
+            },
+            {
+                'id': 2,
+                'title': '🎧 Chill Synthwave (Офлайн-режим)',
+                'artist': 'Тестовый канал',
+                'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+                'duration': 292,
+                'thumbnail': ''
+            }
+        ]
+
 
 # ==================== ПОИСК МУЗЫКИ ====================
-@app.route('/api/search_music', methods=['POST'])
-@login_required
-def search_music():
-    data = request.get_json()
-    query = data.get('query', '').strip().lower()
-    
-    # Фильтруем по запросу
-    results = []
-    for track in TEST_TRACKS:
-        if query in track['title'].lower() or query in track['artist'].lower():
-            results.append(track)
-    
-    # Если ничего не найдено — возвращаем все
-    if not results:
-        results = TEST_TRACKS
-    
-    return jsonify({'results': results})
+
 
 # ==================== ОСТАВЛЯЕМ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ====================
 @app.route('/api/search_video', methods=['POST'])
