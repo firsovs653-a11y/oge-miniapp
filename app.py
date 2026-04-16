@@ -103,13 +103,13 @@ class SoundCloudParser:
                 "offset": 0,
                 "linked_partitioning": 1,
                 "app_version": "1740473827"
-        }
+            }
     
-        data = self._request_with_fallback(url, params)
+            data = self._request_with_fallback(url, params)
     
-        if not data:
-            print("❌ SoundCloud API недоступен, возвращаю тестовые треки")
-            return self._fallback_tracks()
+            if not data:
+                print("❌ SoundCloud API недоступен, возвращаю тестовые треки")
+                return self._fallback_tracks()
     
     # Отладка: печатаем, что пришло
         print(f"📦 API ответ: {len(data.get('collection', []))} треков")
