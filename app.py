@@ -63,51 +63,44 @@ VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 
 # ==================== ПОИСК МУЗЫКИ SOUNDCLOUD ====================
 
-class SoundCloudParser:
-    def __init__(self):
-        # Тестовые треки, которые гарантированно работают
-        self.test_tracks = [
-            {
-                'id': 1,
-                'title': '🎵 Lofi Hip Hop (Тестовый трек)',
-                'artist': 'Тестовый канал',
-                'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-                'duration': 368,  # 6:08
-                'thumbnail': ''
-            },
-            {
-                'id': 2,
-                'title': '🎧 Chill Synthwave',
-                'artist': 'Тестовый канал',
-                'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-                'duration': 292,  # 4:52
-                'thumbnail': ''
-            },
-            {
-                'id': 3,
-                'title': '🎸 Acoustic Guitar',
-                'artist': 'Тестовый канал',
-                'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-                'duration': 254,  # 4:14
-                'thumbnail': ''
-            }
-        ]
+# ==================== ТЕСТОВЫЕ ТРЕКИ ====================
+TEST_TRACKS = [
+    {
+        'id': 1,
+        'title': '🎵 Lofi Hip Hop',
+        'artist': 'Тестовый канал',
+        'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+        'duration': 368,
+        'thumbnail': ''
+    },
+    {
+        'id': 2,
+        'title': '🎧 Chill Synthwave',
+        'artist': 'Тестовый канал',
+        'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+        'duration': 292,
+        'thumbnail': ''
+    }
+]
+
+# ==================== ПОИСК МУЗЫКИ ====================
+@app.route('/api/search_music', methods=['POST'])
+@login_required
+def search_music():
+    data = request.get_json()
+    query = data.get('query', '').strip().lower()
     
-    def search(self, query, limit=10):
-        """
-        Возвращает тестовые треки (игнорирует запрос)
-        """
-        print(f"🔍 Поиск: '{query}' — возвращаю тестовые треки")
-        
-        # Фильтруем по запросу (для имитации поиска)
-        query_lower = query.lower()
-        filtered = []
-        for track in self.test_tracks:
-            if query_lower in track['title'].lower() or query_lower in track['artist'].lower():
-                filtered.append(track)
-        
-        # Если ничего не найдено — возвращаем все
-        return filtered if filtered else self.test_tracks[:limit]
+    # Фильтруем по запросу
+    results = []
+    for track in TEST_TRACKS:
+        if query in track['title'].lower() or query in track['artist'].lower():
+            results.append(track)
+    
+    # Если ничего не найдено — возвращаем все
+    if not results:
+        results = TEST_TRACKS
+    
+    return jsonify({'results': results})
 
 # ==================== ОСТАВЛЯЕМ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ====================
 @app.route('/api/search_video', methods=['POST'])
