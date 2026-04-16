@@ -81,16 +81,16 @@ class SoundCloudParser:
         self.proxy_url = os.environ.get('HTTP_PROXY')
         self.proxies = {'http': self.proxy_url, 'https': self.proxy_url} if self.proxy_url else None
 
-    def _request_with_fallback(self, url, params):
-        for client_id in self.client_ids:
-            try:
-                params["client_id"] = client_id
-                resp = requests.get(url, params=params, headers=self.headers, proxies=self.proxies, timeout=10)
-                if resp.status_code == 200 and resp.text.strip():
-                    return resp.json()
-            except:
-                continue
-        return None
+        def _request_with_fallback(self, url, params):
+            for client_id in self.client_ids:
+                try:
+                    params["client_id"] = client_id
+                    resp = requests.get(url, params=params, headers=self.headers, proxies=self.proxies, timeout=10)
+                    if resp.status_code == 200 and resp.text.strip():
+                        return resp.json()
+                except:
+                    continue
+            return None
 
     def search(self, query, limit=10):
     """Ищет треки на SoundCloud"""
