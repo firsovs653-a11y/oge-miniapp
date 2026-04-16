@@ -65,6 +65,8 @@ VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 
 # ==================== ТЕСТОВЫЕ ТРЕКИ ====================
 # ==================== ПАРСЕР SOUNDCLOUD ====================
+import os  # ← добавьте в начало файла, если ещё нет
+
 class SoundCloudParser:
     def __init__(self):
         self.client_ids = [
@@ -76,100 +78,68 @@ class SoundCloudParser:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "application/json"
         }
-        
-        # === ДОБАВЬТЕ ЭТИ 4 СТРОКИ ===
         self.proxy_url = os.environ.get('HTTP_PROXY')
-        self.proxies = {
-            'http': self.proxy_url,
-            'https': self.proxy_url
-        } if self.proxy_url else None
-        # ===========================
-    
+        self.proxies = {'http': self.proxy_url, 'https': self.proxy_url} if self.proxy_url else None
+
     def _request_with_fallback(self, url, params):
-        """Пробует разные client_id, пока не получит ответ"""
         for client_id in self.client_ids:
             try:
                 params["client_id"] = client_id
-                resp = requests.get(url, params=params, headers=self.headers, timeout=10)
-                
+                resp = requests.get(url, params=params, headers=self.headers, proxies=self.proxies, timeout=10)
                 if resp.status_code == 200 and resp.text.strip():
                     return resp.json()
             except:
                 continue
         return None
-    
+
     def search(self, query, limit=10):
-        """Ищет треки на SoundCloud"""
         print(f"🔍 Поиск SoundCloud: '{query}'")
-        
         url = f"{self.base_url}/search/tracks"
-        params = {
-            "q": query,
-            "limit": limit,
-            "app_version": "1740473827"
-        }
-        
+        params = {"q": query, "limit": limit}
         data = self._request_with_fallback(url, params)
         
         if not data:
-            print("❌ SoundCloud API недоступен, возвращаю тестовые треки")
             return self._fallback_tracks()
         
         results = []
         for track in data.get("collection", []):
             stream_url = track.get("stream_url")
             if stream_url:
-                client_id = params.get("client_id", self.client_ids[0])
                 results.append({
                     'id': track.get('id'),
                     'title': track.get('title', 'Без названия'),
                     'artist': track.get('user', {}).get('username', 'Неизвестен'),
-                    'audio_url': f"{stream_url}?client_id={client_id}",
+                    'audio_url': f"{stream_url}?client_id={self.client_ids[0]}",
                     'duration': track.get('duration', 0) // 1000,
                     'thumbnail': self._get_thumbnail(track)
                 })
-        
-        print(f"✅ Найдено треков: {len(results)}")
         return results if results else self._fallback_tracks()
-    
+
     def _get_thumbnail(self, track):
         if track.get('artwork_url'):
             return track['artwork_url'].replace('large', 't500x500')
-        if track.get('user', {}).get('avatar_url'):
-            return track['user']['avatar_url'].replace('large', 't500x500')
         return ''
-    
+
     def _fallback_tracks(self):
-        """Запасные тестовые треки, если API недоступен"""
         return [
-            {
-                'id': 1,
-                'title': '🎵 Lofi Hip Hop (Офлайн-режим)',
-                'artist': 'Тестовый канал',
-                'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-                'duration': 368,
-                'thumbnail': ''
-            },
-            {
-                'id': 2,
-                'title': '🎧 Chill Synthwave (Офлайн-режим)',
-                'artist': 'Тестовый канал',
-                'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-                'duration': 292,
-                'thumbnail': ''
-            }
+            {'id': 1, 'title': '🎵 Тестовый трек', 'artist': 'Офлайн', 'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', 'duration': 368, 'thumbnail': ''}
         ]
+
+@app.route('/api/search_music', methods=['POST'])
+@login_required
+def search_music():
+    data = request.get_json()
+    query = data.get('query', '').strip()
+    parser = SoundCloudParser()
+    results = parser.search(query, limit=10)
+    return jsonify({'results': results})
 
 
 # ==================== ПОИСК МУЗЫКИ ====================
 
 
 # ==================== ОСТАВЛЯЕМ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ====================
-@app.route('/api/search_video', methods=['POST'])
-@login_required
-def search_video():
-    """Перенаправляет на поиск музыки"""
-    return search_music()
+
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 def generate_room_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
