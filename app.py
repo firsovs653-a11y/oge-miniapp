@@ -63,26 +63,51 @@ VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 
 # ==================== ПОИСК МУЗЫКИ SOUNDCLOUD ====================
-@app.route('/api/search_music', methods=['POST'])
-@login_required
-def search_music():
-    data = request.get_json()
-    query = data.get('query', '').strip()
+class SoundCloudParser:
+    def __init__(self):
+        # Тестовые треки, которые гарантированно работают
+        self.test_tracks = [
+            {
+                'id': 1,
+                'title': '🎵 Lofi Hip Hop (Тестовый трек)',
+                'artist': 'Тестовый канал',
+                'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+                'duration': 368,  # 6:08
+                'thumbnail': ''
+            },
+            {
+                'id': 2,
+                'title': '🎧 Chill Synthwave',
+                'artist': 'Тестовый канал',
+                'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+                'duration': 292,  # 4:52
+                'thumbnail': ''
+            },
+            {
+                'id': 3,
+                'title': '🎸 Acoustic Guitar',
+                'artist': 'Тестовый канал',
+                'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+                'duration': 254,  # 4:14
+                'thumbnail': ''
+            }
+        ]
     
-    if not query:
-        return jsonify({'error': 'Empty query'}), 400
-    
-    try:
-        parser = SoundCloudParser()
-        results = parser.search(query, limit=10)
+    def search(self, query, limit=10):
+        """
+        Возвращает тестовые треки (игнорирует запрос)
+        """
+        print(f"🔍 Поиск: '{query}' — возвращаю тестовые треки")
         
-        if not results:
-            return jsonify({'results': [], 'message': 'Ничего не найдено'})
+        # Фильтруем по запросу (для имитации поиска)
+        query_lower = query.lower()
+        filtered = []
+        for track in self.test_tracks:
+            if query_lower in track['title'].lower() or query_lower in track['artist'].lower():
+                filtered.append(track)
         
-        return jsonify({'results': results})
-    except Exception as e:
-        print(f"Search error: {e}")
-        return jsonify({'error': str(e)}), 500
+        # Если ничего не найдено — возвращаем все
+        return filtered if filtered else self.test_tracks[:limit]
 
 # ==================== ОСТАВЛЯЕМ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ====================
 @app.route('/api/search_video', methods=['POST'])
