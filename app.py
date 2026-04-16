@@ -69,87 +69,88 @@ import os  # ← добавьте в начало файла, если ещё н
 
 class SoundCloudParser:
     def __init__(self):
-        self.client_ids = [
-            "DAXAfBNYHaWC72FM2w6Jvh84R96RfMYP",
-            "2t9loNQH90kzJcsFCODdigxfp325aq4z",
-        ]
+        self.client_id = "DAXAfBNYHaWC72FM2w6Jvh84R96RfMYP"
+        self.app_version = "1776236574"
         self.base_url = "https://api-v2.soundcloud.com"
+        
+        # Заголовки, которые точно работают
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Accept": "application/json"
+            "Authorization": "OAuth 2-321262-1413040017-RgNQZzVGdriAP",
+            "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Origin": "https://soundcloud.com",
+            "Referer": "https://soundcloud.com/"
         }
-        self.proxy_url = os.environ.get('HTTP_PROXY')
-        self.proxies = {'http': self.proxy_url, 'https': self.proxy_url} if self.proxy_url else None
-
-    def _request_with_fallback(self, url, params):
-        for client_id in self.client_ids:
-            try:
-                params["client_id"] = client_id
-                resp = requests.get(url, params=params, headers=self.headers, proxies=self.proxies, timeout=10)
-                if resp.status_code == 200 and resp.text.strip():
-                    return resp.json()
-            except:
-                continue
-        return None
+        
+        # Прокси больше не используем
+        self.proxies = None
 
     def search(self, query, limit=10):
-        """Ищет треки на SoundCloud"""
         print(f"🔍 Поиск SoundCloud: '{query}'")
-
-        url = f"{self.base_url}/search/tracks"
+        
+        url = f"{self.base_url}/search"
         params = {
             "q": query,
+            "client_id": self.client_id,
             "limit": limit,
             "offset": 0,
             "linked_partitioning": 1,
-            "app_version": "1776236574"  # ← обновили
+            "app_version": self.app_version,
+            "app_locale": "en"
         }
-
-        data = self._request_with_fallback(url, params)
-
-        if not data:
-            print("❌ SoundCloud API недоступен, возвращаю тестовые треки")
-            return self._fallback_tracks()
-
-        print(f"📦 API ответ: {len(data.get('collection', []))} треков")
-
-        results = []
-        for track in data.get("collection", []):
-            stream_url = track.get("stream_url")
-            if not stream_url:
+        
+        try:
+            resp = requests.get(url, params=params, headers=self.headers, timeout=10)
+            
+            if resp.status_code != 200:
+                print(f"❌ Ошибка API: {resp.status_code}")
+                return self._fallback_tracks()
+            
+            data = resp.json()
+            results = []
+            
+            for track in data.get("collection", []):
+                # Ищем ссылку на поток
+                stream_url = None
                 media = track.get("media", {})
                 transcodings = media.get("transcodings", [])
-                if transcodings:
+                
+                # Берём progressive (MP3) или hls
+                for t in transcodings:
+                    if t.get("format", {}).get("protocol") == "progressive":
+                        stream_url = t.get("url")
+                        break
+                
+                if not stream_url and transcodings:
                     stream_url = transcodings[0].get("url")
-
-            if stream_url:
-                client_id = params.get("client_id", self.client_ids[0])
-                if "client_id=" not in stream_url:
-                    stream_url = f"{stream_url}?client_id={client_id}"
-
-                results.append({
-                    'id': track.get('id'),
-                    'title': track.get('title', 'Без названия'),
-                    'artist': track.get('user', {}).get('username', 'Неизвестен'),
-                    'audio_url': stream_url,
-                    'duration': track.get('duration', 0) // 1000,
-                    'thumbnail': self._get_thumbnail(track)
-                })
-
-        print(f"✅ Найдено треков: {len(results)}")
-        return results if results else self._fallback_tracks()
-
-    def _get_thumbnail(self, track):
-        if track.get('artwork_url'):
-            return track['artwork_url'].replace('large', 't500x500')
-        if track.get('user', {}).get('avatar_url'):
-            return track['user']['avatar_url'].replace('large', 't500x500')
-        return ''
+                
+                if stream_url:
+                    results.append({
+                        'id': track.get('id'),
+                        'title': track.get('title', 'Без названия'),
+                        'artist': track.get('user', {}).get('username', 'Неизвестен'),
+                        'audio_url': f"{stream_url}?client_id={self.client_id}",
+                        'duration': track.get('duration', 0) // 1000,
+                        'thumbnail': track.get('artwork_url') or ''
+                    })
+            
+            print(f"✅ Найдено треков: {len(results)}")
+            return results if results else self._fallback_tracks()
+            
+        except Exception as e:
+            print(f"❌ Ошибка поиска: {e}")
+            return self._fallback_tracks()
 
     def _fallback_tracks(self):
         return [
-            {'id': 1, 'title': '🎵 Тестовый трек', 'artist': 'Офлайн', 'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', 'duration': 368, 'thumbnail': ''},
-            {'id': 2, 'title': '🎧 Запасной трек', 'artist': 'Офлайн', 'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', 'duration': 292, 'thumbnail': ''}
+            {
+                'id': 1,
+                'title': '🎵 Тестовый трек',
+                'artist': 'Офлайн-режим',
+                'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+                'duration': 368,
+                'thumbnail': ''
+            }
         ]
 
 @app.route('/api/search_music', methods=['POST'])
