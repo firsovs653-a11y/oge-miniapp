@@ -11,7 +11,6 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite, ChatMessage
-from soundcloud_parser import SoundCloudParser
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
