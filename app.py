@@ -62,8 +62,7 @@ VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 
 # ==================== ПОИСК МУЗЫКИ SOUNDCLOUD ====================
-@app.route('/api/search_music', methods=['POST'])
-@login_required
+
 class SoundCloudParser:
     def __init__(self):
         # Тестовые треки, которые гарантированно работают
