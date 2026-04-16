@@ -102,7 +102,7 @@ class SoundCloudParser:
             "limit": limit,
             "offset": 0,
             "linked_partitioning": 1,
-            "app_version": "1740473827"
+            "app_version": "1776236574"  # ← обновили
         }
 
         data = self._request_with_fallback(url, params)
