@@ -92,53 +92,53 @@ class SoundCloudParser:
                     continue
             return None
 
-    def search(self, query, limit=10):
-    """Ищет треки на SoundCloud"""
-    print(f"🔍 Поиск SoundCloud: '{query}'")
+        def search(self, query, limit=10):
+        """Ищет треки на SoundCloud"""
+        print(f"🔍 Поиск SoundCloud: '{query}'")
     
-    url = f"{self.base_url}/search/tracks"
-    params = {
-        "q": query,
-        "limit": limit,
-        "offset": 0,
-        "linked_partitioning": 1,
-        "app_version": "1740473827"
-    }
+        url = f"{self.base_url}/search/tracks"
+        params = {
+            "q": query,
+            "limit": limit,
+            "offset": 0,
+            "linked_partitioning": 1,
+            "app_version": "1740473827"
+        }
     
-    data = self._request_with_fallback(url, params)
+        data = self._request_with_fallback(url, params)
     
-    if not data:
-        print("❌ SoundCloud API недоступен, возвращаю тестовые треки")
-        return self._fallback_tracks()
+        if not data:
+            print("❌ SoundCloud API недоступен, возвращаю тестовые треки")
+            return self._fallback_tracks()
     
     # Отладка: печатаем, что пришло
-    print(f"📦 API ответ: {len(data.get('collection', []))} треков")
+        print(f"📦 API ответ: {len(data.get('collection', []))} треков")
     
-    results = []
-    for track in data.get("collection", []):
+        results = []
+        for track in data.get("collection", []):
         # Проверяем разные возможные поля с URL
-        stream_url = track.get("stream_url")
-        if not stream_url:
+            stream_url = track.get("stream_url")
+            if not stream_url:
             # Иногда ссылка лежит в media.transcodings
-            media = track.get("media", {})
-            transcodings = media.get("transcodings", [])
-            if transcodings:
-                stream_url = transcodings[0].get("url")
+                media = track.get("media", {})
+                transcodings = media.get("transcodings", [])
+                if transcodings:
+                    stream_url = transcodings[0].get("url")
         
-        if stream_url:
-            client_id = params.get("client_id", self.client_ids[0])
+            if stream_url:
+                client_id = params.get("client_id", self.client_ids[0])
             # Если это URL для транскодинга, добавляем client_id
-            if "client_id=" not in stream_url:
-                stream_url = f"{stream_url}?client_id={client_id}"
+                if "client_id=" not in stream_url:
+                    stream_url = f"{stream_url}?client_id={client_id}"
             
-            results.append({
-                'id': track.get('id'),
-                'title': track.get('title', 'Без названия'),
-                'artist': track.get('user', {}).get('username', 'Неизвестен'),
-                'audio_url': stream_url,
-                'duration': track.get('duration', 0) // 1000,
-                'thumbnail': self._get_thumbnail(track)
-            })
+                results.append({
+                    'id': track.get('id'),
+                    'title': track.get('title', 'Без названия'),
+                    'artist': track.get('user', {}).get('username', 'Неизвестен'),
+                    'audio_url': stream_url,
+                    'duration': track.get('duration', 0) // 1000,
+                    'thumbnail': self._get_thumbnail(track)
+                })
     
     print(f"✅ Найдено треков: {len(results)}")
     return results if results else self._fallback_tracks()
