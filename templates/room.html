@@ -256,9 +256,10 @@ window.searchMusic = function() {
             
             item.onclick = () => {
                 const audio = document.getElementById('audio-player');
-                const url = track.audio_url;
+                const originalUrl = track.audio_url;
+                const url = `/api/stream?url=${encodeURIComponent(originalUrl)}`;
                 
-                if (url.includes('.m3u8')) {
+                if (originalUrl.includes('.m3u8')) {
                     if (typeof Hls !== 'undefined' && Hls.isSupported()) {
                         if (window.currentHls) window.currentHls.destroy();
                         const hls = new Hls();
