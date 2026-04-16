@@ -4,10 +4,10 @@
 
 {% block content %}
 <div class="room-container">
-    <!-- Левая колонка - видео -->
+    <!-- Левая колонка - АУДИО -->
     <div class="video-section glass-card animate-in">
         <div class="section-header">
-            <h1 class="glow-text">🎬 {{ room.name }}</h1>
+            <h1 class="glow-text">🎵 {{ room.name }}</h1>
             <div class="room-badges">
                 <span class="badge code-badge">
                     <span class="badge-icon">🔑</span>
@@ -20,97 +20,59 @@
             </div>
         </div>
         
-        <!-- Поиск -->
+        <!-- Поиск музыки -->
         <div class="search-section">
             <div class="input-group">
-                <input type="text" id="search-query" placeholder="🔍 Найти фильм или сериал..." class="glass-input">
-                <button onclick="searchVideo()" class="btn btn-primary btn-icon">
-                    <span>🎬</span>
+                <input type="text" id="search-query" placeholder="🔍 Найти трек..." class="glass-input">
+                <button onclick="searchMusic()" class="btn btn-primary btn-icon">
+                    <span>🎵</span>
                     <span>Найти</span>
                 </button>
             </div>
             <div id="search-results" class="search-results glass-dropdown" style="display: none;"></div>
         </div>
         
-        <!-- Ручной ввод ссылки -->
-        <div class="input-group">
-            <input type="text" id="search-query" placeholder="🔍 Найти трек на SoundCloud..." class="glass-input">
-<button onclick="searchMusic()" class="btn btn-primary btn-icon">
-    <span>🎵</span>
-    <span>Найти</span>
+        <!-- Аудиоплеер -->
+        <div class="audio-player-wrapper" style="padding: 20px; text-align: center;">
+            <img id="track-thumbnail" src="" style="width: 200px; height: 200px; border-radius: 12px; object-fit: cover; margin-bottom: 15px; display: none;">
+            <div id="track-info" style="margin-bottom: 15px;">
+                <h3 id="track-title" style="color: #fff; margin: 0;">Выберите трек</h3>
+                <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0;"></p>
+            </div>
+            <audio id="audio-player" controls style="width: 100%;">
+                <source id="audio-source" src="" type="audio/mpeg">
+            </audio>
         </div>
         
-        <!-- Видеоплеер -->
-        <!-- Вместо <div class="video-wrapper"> -->
-<!-- Левая колонка - АУДИО -->
-<div class="video-section glass-card animate-in">
-    <div class="section-header">
-        <h1 class="glow-text">🎵 {{ room.name }}</h1>
-        <div class="room-badges">
-            <span class="badge code-badge">
-                <span class="badge-icon">🔑</span>
-                <span>{{ room.code }}</span>
-            </span>
-            <span class="badge creator-badge">
-                <span class="badge-icon">👑</span>
-                <span>{{ room.creator.username }}</span>
-            </span>
-        </div>
-    </div>
-    
-    <!-- Поиск музыки -->
-    <div class="search-section">
-        <div class="input-group">
-            <input type="text" id="search-query" placeholder="🔍 Найти трек..." class="glass-input">
-            <button onclick="searchMusic()" class="btn btn-primary btn-icon">
-                <span>🎵</span>
-                <span>Найти</span>
+        <!-- Управление -->
+        <div class="video-controls">
+            <button onclick="playAudio()" class="btn btn-play btn-icon pulse-animation">
+                <span>▶</span>
+                <span>Play</span>
+            </button>
+            <button onclick="pauseAudio()" class="btn btn-pause btn-icon">
+                <span>⏸</span>
+                <span>Pause</span>
             </button>
         </div>
-        <div id="search-results" class="search-results glass-dropdown" style="display: none;"></div>
-    </div>
-    
-    <!-- Аудиоплеер -->
-    <div class="audio-player-wrapper" style="padding: 20px; text-align: center;">
-        <img id="track-thumbnail" src="" style="width: 200px; height: 200px; border-radius: 12px; object-fit: cover; margin-bottom: 15px; display: none;">
-        <div id="track-info" style="margin-bottom: 15px;">
-            <h3 id="track-title" style="color: #fff; margin: 0;">Выберите трек</h3>
-            <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0;"></p>
-        </div>
-        <audio id="audio-player" controls style="width: 100%;">
-            <source id="audio-source" src="" type="audio/mpeg">
-        </audio>
-    </div>
-    
-    <!-- Управление -->
-    <div class="video-controls">
-        <button onclick="playAudio()" class="btn btn-play btn-icon pulse-animation">
-            <span>▶</span>
-            <span>Play</span>
-        </button>
-        <button onclick="pauseAudio()" class="btn btn-pause btn-icon">
-            <span>⏸</span>
-            <span>Pause</span>
-        </button>
-    </div>
-    
-    <!-- Участники -->
-    <div class="members-section">
-        <h3 class="section-title">
-            <span>👥</span>
-            <span>Участники</span>
-            <span class="member-count">{{ members|length }}</span>
-        </h3>
-        <div class="members-grid">
-            {% for member in members %}
-            <span class="member-tag glass-tag">
-                <span class="member-avatar">👤</span>
-                <span>{{ member.user.username }}</span>
-            </span>
-            {% endfor %}
+        
+        <!-- Участники -->
+        <div class="members-section">
+            <h3 class="section-title">
+                <span>👥</span>
+                <span>Участники</span>
+                <span class="member-count">{{ members|length }}</span>
+            </h3>
+            <div class="members-grid">
+                {% for member in members %}
+                <span class="member-tag glass-tag">
+                    <span class="member-avatar">👤</span>
+                    <span>{{ member.user.username }}</span>
+                </span>
+                {% endfor %}
+            </div>
         </div>
     </div>
-</div>
     
     <!-- Правая колонка - чат -->
     <div class="chat-section glass-card animate-in-delay">
@@ -167,9 +129,6 @@
     .btn-icon:hover { transform: translateY(-2px); }
     .pulse-animation { animation: buttonPulse 2s ease-in-out infinite; }
     @keyframes buttonPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 197, 24, 0.2); } 50% { box-shadow: 0 0 0 8px rgba(245, 197, 24, 0); } }
-    .video-wrapper { position: relative; margin: 20px 0; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
-    .glass-video { width: 100%; display: block; background: #000; }
-    .video-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; border-radius: 16px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05); }
     .video-controls { display: flex; gap: 12px; margin: 20px 0; }
     .video-controls .btn { flex: 1; padding: 14px; font-size: 15px; }
     .members-section { margin-top: 24px; padding-top: 20px; border-top: 0.5px solid rgba(255, 255, 255, 0.06); }
@@ -220,11 +179,26 @@
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
+const socket = io(window.location.origin, { 
+    transports: ['polling', 'websocket'],
+    upgrade: true,
+    reconnection: true
+});
+
+const roomId = {{ room.id }};
+const currentUsername = '{{ current_user.username }}';
+const chatMessages = document.getElementById('chat-messages');
+
 // ========== АУДИОПЛЕЕР ==========
 const audio = document.getElementById('audio-player');
 const trackTitle = document.getElementById('track-title');
 const trackArtist = document.getElementById('track-artist');
 const trackThumbnail = document.getElementById('track-thumbnail');
+
+let isRemoteAction = false;
+let firstMessage = true;
+
+socket.emit('join', { room_id: roomId });
 
 function playAudio() {
     if (audio) {
@@ -289,8 +263,8 @@ window.searchMusic = function() {
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span style="font-size:24px;">🎵</span>
                     <div style="flex:1;">
-                        <strong>${track.title}</strong><br>
-                        <small>${track.artist} • ${minutes}:${seconds}</small>
+                        <strong>${escapeHtml(track.title)}</strong><br>
+                        <small>${escapeHtml(track.artist)} • ${minutes}:${seconds}</small>
                     </div>
                 </div>
             `;
@@ -325,9 +299,53 @@ socket.on('video_change_sync', (data) => {
         audio.src = data.video_url;
         audio.load();
         audio.play();
-        trackTitle.textContent = 'Трек из комнаты';
-        trackArtist.textContent = 'Синхронизировано';
+        if (trackTitle) trackTitle.textContent = 'Трек из комнаты';
+        if (trackArtist) trackArtist.textContent = 'Синхронизировано';
+        if (trackThumbnail) trackThumbnail.style.display = 'none';
     }
+});
+
+// ========== ЧАТ ==========
+function sendMessage() {
+    const input = document.getElementById('message-input');
+    const message = input.value.trim();
+    if (message) {
+        socket.emit('send_message', { room_id: roomId, message: message });
+        input.value = '';
+    }
+}
+
+document.getElementById('message-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+});
+
+socket.on('new_message', (data) => {
+    if (firstMessage) {
+        chatMessages.innerHTML = '';
+        firstMessage = false;
+    }
+    const el = document.createElement('div');
+    el.className = 'chat-message' + (data.username === currentUsername ? ' own' : '');
+    el.innerHTML = `
+        <div class="message-header">
+            <span class="message-username">${escapeHtml(data.username)}</span>
+            <span class="message-time">${data.timestamp}</span>
+        </div>
+        <div class="message-text">${escapeHtml(data.message)}</div>
+    `;
+    chatMessages.appendChild(el);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+});
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+socket.on('connect', () => {
+    console.log('✅ WebSocket connected');
+    socket.emit('join', { room_id: roomId });
 });
 </script>
 {% endblock %}
