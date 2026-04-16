@@ -11,6 +11,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite, ChatMessage
+from flask import Response
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -30,6 +31,40 @@ login_manager.login_view = 'login'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 # ==================== JSON ЛОГ ПОЛЬЗОВАТЕЛЕЙ ====================
 USERS_DATA_FILE = 'users_data.json'
+@app.route('/api/stream', methods=['GET'])
+def stream_audio():
+    url = request.args.get('url')
+    if not url:
+        return '', 400
+    
+    headers = {
+        "Authorization": "OAuth 2-321262-1413040017-RgNQZzVGdriAP",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36",
+        "Origin": "https://soundcloud.com",
+        "Referer": "https://soundcloud.com/"
+    }
+    
+    try:
+        resp = requests.get(url, headers=headers, stream=True, timeout=15)
+        
+        # Проксируем ответ
+        def generate():
+            for chunk in resp.iter_content(chunk_size=8192):
+                if chunk:
+                    yield chunk
+        
+        return Response(
+            generate(),
+            status=resp.status_code,
+            content_type=resp.headers.get('Content-Type', 'audio/mpeg'),
+            headers={
+                'Accept-Ranges': 'bytes',
+                'Cache-Control': 'no-cache'
+            }
+        )
+    except Exception as e:
+        print(f"Stream error: {e}")
+        return '', 500
 
 def save_user_data(username, email, password_hash):
     """Сохраняет данные пользователя в JSON-файл"""
