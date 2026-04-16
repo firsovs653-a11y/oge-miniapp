@@ -179,42 +179,25 @@
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
-const socket = io(window.location.origin, { 
-    transports: ['polling', 'websocket'],
-    upgrade: true,
-    reconnection: true
-});
+// SoundCloud Widget
+let scWidget = null;
+let currentTrackUrl = null;
 
-const roomId = {{ room.id }};
-const currentUsername = '{{ current_user.username }}';
-const chatMessages = document.getElementById('chat-messages');
+// Инициализация пустого плеера
+const playerDiv = document.getElementById('soundcloud-player');
 
-// ========== АУДИОПЛЕЕР ==========
-const audio = document.getElementById('audio-player');
-const trackTitle = document.getElementById('track-title');
-const trackArtist = document.getElementById('track-artist');
-const trackThumbnail = document.getElementById('track-thumbnail');
-
-let isRemoteAction = false;
-let firstMessage = true;
-
-socket.emit('join', { room_id: roomId });
-
-function playAudio() {
-    if (audio) {
-        audio.play();
-        socket.emit('play', { room_id: roomId, current_time: audio.currentTime });
+// Функция загрузки трека
+function loadTrack(trackUrl) {
+    if (scWidget) {
+        scWidget.load(trackUrl, { auto_play: true });
+    } else {
+        scWidget = SC.Widget(playerDiv);
+        scWidget.load(trackUrl, { auto_play: true });
     }
+    currentTrackUrl = trackUrl;
 }
 
-function pauseAudio() {
-    if (audio) {
-        audio.pause();
-        socket.emit('pause', { room_id: roomId, current_time: audio.currentTime });
-    }
-}
-
-// ========== ПОИСК МУЗЫКИ ==========
+// Поиск музыки
 window.searchMusic = function() {
     const query = document.getElementById('search-query').value;
     if (!query.trim()) return;
@@ -255,108 +238,38 @@ window.searchMusic = function() {
             `;
             
             item.onclick = () => {
-                const audio = document.getElementById('audio-player');
-                const url = track.audio_url;
+                // Загружаем трек в виджет
+                loadTrack(track.permalink_url);
                 
-                audio.src = url;
-                audio.load();
-                audio.play().catch(e => console.log('Autoplay blocked:', e));
-                
+                // Обновляем информацию
                 if (trackTitle) trackTitle.textContent = track.title;
                 if (trackArtist) trackArtist.textContent = track.artist;
                 if (track.thumbnail) {
                     trackThumbnail.src = track.thumbnail;
                     trackThumbnail.style.display = 'block';
-                } else {
-                    trackThumbnail.style.display = 'none';
                 }
                 
-                socket.emit('change_video', { room_id: roomId, video_url: url });
                 resultsDiv.style.display = 'none';
             };
             
             resultsDiv.appendChild(item);
         });
-    })
-    .catch(err => {
-        console.error('Ошибка поиска:', err);
-        resultsDiv.innerHTML = '<div class="search-result-item">❌ Ошибка поиска</div>';
     });
 };
 
-// ========== СИНХРОНИЗАЦИЯ ==========
-socket.on('play_sync', (data) => {
-    if (audio) {
-        audio.currentTime = data.current_time;
-        audio.play();
-    }
-});
-
-socket.on('pause_sync', (data) => {
-    if (audio) {
-        audio.currentTime = data.current_time;
-        audio.pause();
-    }
-});
-
-socket.on('seek_sync', (data) => {
-    if (audio) {
-        audio.currentTime = data.current_time;
-    }
-});
-
-socket.on('video_change_sync', (data) => {
-    if (audio) {
-        audio.src = data.video_url;
-        audio.load();
-        audio.play();
-        if (trackTitle) trackTitle.textContent = 'Трек из комнаты';
-        if (trackArtist) trackArtist.textContent = 'Синхронизировано';
-        if (trackThumbnail) trackThumbnail.style.display = 'none';
-    }
-});
-
-// ========== ЧАТ ==========
-function sendMessage() {
-    const input = document.getElementById('message-input');
-    const message = input.value.trim();
-    if (message) {
-        socket.emit('send_message', { room_id: roomId, message: message });
-        input.value = '';
-    }
+// Кнопки управления
+function playAudio() {
+    if (scWidget) scWidget.play();
 }
 
-document.getElementById('message-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-});
-
-socket.on('new_message', (data) => {
-    if (firstMessage) {
-        chatMessages.innerHTML = '';
-        firstMessage = false;
-    }
-    const el = document.createElement('div');
-    el.className = 'chat-message' + (data.username === currentUsername ? ' own' : '');
-    el.innerHTML = `
-        <div class="message-header">
-            <span class="message-username">${escapeHtml(data.username)}</span>
-            <span class="message-time">${data.timestamp}</span>
-        </div>
-        <div class="message-text">${escapeHtml(data.message)}</div>
-    `;
-    chatMessages.appendChild(el);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-});
+function pauseAudio() {
+    if (scWidget) scWidget.pause();
+}
 
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
-
-socket.on('connect', () => {
-    console.log('✅ WebSocket connected');
-    socket.emit('join', { room_id: roomId });
-});
 </script>
 {% endblock %}
