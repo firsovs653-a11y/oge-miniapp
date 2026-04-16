@@ -42,12 +42,17 @@
         </div>
         
         <!-- Видеоплеер -->
-        <div class="video-wrapper">
-            <video id="video-player" controls class="glass-video">
-                <source id="video-source" src="" type="video/mp4">
-            </video>
-            <div class="video-overlay"></div>
-        </div>
+        <!-- Вместо <div class="video-wrapper"> -->
+<div class="audio-player-wrapper glass-card" style="padding: 20px; text-align: center;">
+    <img id="track-thumbnail" src="" style="width: 200px; height: 200px; border-radius: 12px; object-fit: cover; margin-bottom: 15px; display: none;">
+    <div id="track-info" style="margin-bottom: 15px;">
+        <h3 id="track-title" style="color: #fff; margin: 0;">Выберите трек</h3>
+        <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0;"></p>
+    </div>
+    <audio id="audio-player" controls style="width: 100%;">
+        <source id="audio-source" src="" type="audio/mpeg">
+    </audio>
+</div>
         
         <!-- Управление -->
         <div class="video-controls">
