@@ -11,8 +11,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite, ChatMessage
-
-from aniliberty_parser import AniLibertyParser
+from soundcloud_parser import SoundCloudParser
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -76,7 +75,20 @@ def search_video():
         return jsonify({'error': 'Ничего не найдено'}), 404
         
     return jsonify({'results': results})
-
+def search_music():
+    data = request.get_json()
+    query = data.get('query', '').strip()
+    
+    if not query:
+        return jsonify({'error': 'Empty query'}), 400
+    
+    parser = SoundCloudParser()
+    results = parser.search(query, limit=10)
+    
+    if not results:
+        return jsonify({'results': [], 'message': 'Ничего не найдено'})
+    
+    return jsonify({'results': results})
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 def generate_room_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
