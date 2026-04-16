@@ -67,17 +67,23 @@ VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
 # ==================== ПАРСЕР SOUNDCLOUD ====================
 class SoundCloudParser:
     def __init__(self):
-        # Несколько публичных client_id (если один заблокируют — пробуем другой)
         self.client_ids = [
             "a3e059563d7f33715b3b5e7e7d7c1e8c",
             "2t9loNQH90kzJcsFCODdigxfp325aq4z",
-            "iZIs9mchVcX5lhVRyQGGAYlNPVldzAoX"
         ]
         self.base_url = "https://api-v2.soundcloud.com"
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "application/json"
         }
+        
+        # === ДОБАВЬТЕ ЭТИ 4 СТРОКИ ===
+        self.proxy_url = os.environ.get('HTTP_PROXY')
+        self.proxies = {
+            'http': self.proxy_url,
+            'https': self.proxy_url
+        } if self.proxy_url else None
+        # ===========================
     
     def _request_with_fallback(self, url, params):
         """Пробует разные client_id, пока не получит ответ"""
