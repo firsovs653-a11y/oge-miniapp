@@ -195,6 +195,7 @@
 const socket = io(window.location.origin, { 
     transports: ['polling', 'websocket'],
     upgrade: true,
+    rememberUpgrade: true,
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000
@@ -203,10 +204,17 @@ const socket = io(window.location.origin, {
 const roomId = {{ room.id }};
 const currentUsername = '{{ current_user.username }}';
 const chatMessages = document.getElementById('chat-messages');
-const video = document.getElementById('video-player');
+
+// ===== АУДИОПЛЕЕР =====
+const audio = document.getElementById('audio-player');
+const trackTitle = document.getElementById('track-title');
+const trackArtist = document.getElementById('track-artist');
+const trackThumbnail = document.getElementById('track-thumbnail');
 
 let isRemoteAction = false;
 let remoteActionTimer = null;
+
+// ===== ЧАТ =====
 let firstMessage = true;
 let typingTimeout = null;
 let isTyping = false;
@@ -214,31 +222,198 @@ let typingUsers = new Set();
 
 socket.emit('join', { room_id: roomId });
 
-// ========== ПРИВЯЗКА СОБЫТИЙ ВИДЕОПЛЕЕРА ==========
-function bindVideoEvents(videoElement) {
-    videoElement.addEventListener('play', () => {
+// ========== ПРИВЯЗКА СОБЫТИЙ АУДИОПЛЕЕРА ==========
+function bindAudioEvents(audioElement) {
+    audioElement.addEventListener('play', () => {
         if (!isRemoteAction) {
-            socket.emit('play', { room_id: roomId, current_time: videoElement.currentTime });
+            socket.emit('play', { room_id: roomId, current_time: audioElement.currentTime });
         }
     });
     
-    videoElement.addEventListener('pause', () => {
+    audioElement.addEventListener('pause', () => {
         if (!isRemoteAction) {
-            socket.emit('pause', { room_id: roomId, current_time: videoElement.currentTime });
+            socket.emit('pause', { room_id: roomId, current_time: audioElement.currentTime });
         }
     });
     
-    videoElement.addEventListener('seeked', () => {
+    audioElement.addEventListener('seeked', () => {
         if (!isRemoteAction) {
-            socket.emit('seek', { room_id: roomId, current_time: videoElement.currentTime });
+            socket.emit('seek', { room_id: roomId, current_time: audioElement.currentTime });
         }
     });
 }
 
-// Привязываем события к начальному плееру
-bindVideoEvents(video);
+bindAudioEvents(audio);
 
-// ========== ЧАТ С ИНДИКАТОРОМ ПЕЧАТИ ==========
+// ========== УПРАВЛЕНИЕ ПЛЕЕРОМ ==========
+function playAudio() {
+    audio.play();
+    socket.emit('play', { room_id: roomId, current_time: audio.currentTime });
+}
+
+function pauseAudio() {
+    audio.pause();
+    socket.emit('pause', { room_id: roomId, current_time: audio.currentTime });
+}
+
+// ========== ПОИСК МУЗЫКИ (SOUNDCLOUD) ==========
+window.searchMusic = function() {
+    const query = document.getElementById('search-query').value;
+    if (!query.trim()) return;
+    
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = '<div class="search-result-item">⏳ Поиск...</div>';
+    
+    fetch('/api/search_music', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) {
+            resultsDiv.innerHTML = `<div class="search-result-item" style="color: #ff6b6b;">❌ ${data.error}</div>`;
+            return;
+        }
+        if (!data.results || data.results.length === 0) {
+            resultsDiv.innerHTML = '<div class="search-result-item">😔 Ничего не найдено</div>';
+            return;
+        }
+        
+        resultsDiv.innerHTML = '';
+        data.results.forEach(track => {
+            const item = document.createElement('div');
+            item.className = 'search-result-item';
+            item.onclick = () => {
+                isRemoteAction = true;
+                
+                // Обновляем информацию о треке
+                trackTitle.textContent = track.title;
+                trackArtist.textContent = track.artist;
+                
+                if (track.thumbnail) {
+                    trackThumbnail.src = track.thumbnail;
+                    trackThumbnail.style.display = 'block';
+                } else {
+                    trackThumbnail.style.display = 'none';
+                }
+                
+                // Загружаем трек
+                audio.src = track.audio_url;
+                audio.load();
+                
+                audio.addEventListener('loadedmetadata', function onLoaded() {
+                    audio.removeEventListener('loadedmetadata', onLoaded);
+                    audio.play().catch(e => console.log('Autoplay blocked'));
+                });
+                
+                socket.emit('change_video', { room_id: roomId, video_url: track.audio_url });
+                resultsDiv.style.display = 'none';
+                setTimeout(() => { isRemoteAction = false; }, 500);
+            };
+            
+            const minutes = Math.floor(track.duration / 60);
+            const seconds = String(track.duration % 60).padStart(2, '0');
+            
+            item.innerHTML = `
+                <div style="display:flex; align-items:center; gap:10px;">
+                    ${track.thumbnail ? `<img src="${track.thumbnail}" style="width:40px; height:40px; border-radius:4px; object-fit:cover;">` : '<span style="font-size:24px;">🎵</span>'}
+                    <div style="flex:1;">
+                        <strong>${escapeHtml(track.title)}</strong><br>
+                        <small>${escapeHtml(track.artist)} • ${minutes}:${seconds}</small>
+                    </div>
+                </div>
+            `;
+            resultsDiv.appendChild(item);
+        });
+    })
+    .catch(err => {
+        console.error('Search error:', err);
+        resultsDiv.innerHTML = '<div class="search-result-item" style="color: #ff6b6b;">❌ Ошибка поиска</div>';
+    });
+};
+
+// Оставляем для обратной совместимости
+window.searchVK = window.searchMusic;
+
+// ========== РУЧНОЙ ВВОД ССЫЛКИ ==========
+function changeVideo() {
+    const url = document.getElementById('video-url').value;
+    if (url) {
+        isRemoteAction = true;
+        audio.src = url;
+        audio.load();
+        
+        trackTitle.textContent = 'Пользовательский трек';
+        trackArtist.textContent = 'Прямая ссылка';
+        trackThumbnail.style.display = 'none';
+        
+        audio.addEventListener('loadedmetadata', function onLoaded() {
+            audio.removeEventListener('loadedmetadata', onLoaded);
+            audio.play().catch(e => {});
+        });
+        
+        socket.emit('change_video', { room_id: roomId, video_url: url });
+        setTimeout(() => { isRemoteAction = false; }, 500);
+    }
+}
+
+// ========== СИНХРОНИЗАЦИЯ ==========
+socket.on('play_sync', (data) => {
+    isRemoteAction = true;
+    clearTimeout(remoteActionTimer);
+    
+    if (Math.abs(audio.currentTime - data.current_time) > 0.5) {
+        audio.currentTime = data.current_time;
+    }
+    audio.play().catch(e => {});
+    
+    remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
+});
+
+socket.on('pause_sync', (data) => {
+    isRemoteAction = true;
+    clearTimeout(remoteActionTimer);
+    
+    audio.currentTime = data.current_time;
+    audio.pause();
+    
+    remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
+});
+
+socket.on('seek_sync', (data) => {
+    isRemoteAction = true;
+    clearTimeout(remoteActionTimer);
+    
+    audio.currentTime = data.current_time;
+    
+    if (audio.paused) {
+        audio.play().catch(e => {});
+    }
+    
+    remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
+});
+
+socket.on('video_change_sync', (data) => {
+    isRemoteAction = true;
+    clearTimeout(remoteActionTimer);
+    
+    audio.src = data.video_url;
+    audio.load();
+    
+    trackTitle.textContent = 'Трек из комнаты';
+    trackArtist.textContent = 'Синхронизировано';
+    trackThumbnail.style.display = 'none';
+    
+    audio.addEventListener('loadedmetadata', function onLoaded() {
+        audio.removeEventListener('loadedmetadata', onLoaded);
+        audio.play().catch(e => {});
+        remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
+    });
+});
+
+// ========== ЧАТ ==========
 function sendMessage() {
     const input = document.getElementById('message-input');
     const message = input.value.trim();
@@ -353,188 +528,13 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ========== УПРАВЛЕНИЕ ВИДЕО ==========
-function playVideo() {
-    const vid = document.getElementById('video-player');
-    if (vid) {
-        vid.play();
-        socket.emit('play', { room_id: roomId, current_time: vid.currentTime });
-    }
-}
-
-function pauseVideo() {
-    const vid = document.getElementById('video-player');
-    if (vid) {
-        vid.pause();
-        socket.emit('pause', { room_id: roomId, current_time: vid.currentTime });
-    }
-}
-
-function changeVideo() {
-    const url = document.getElementById('video-url').value;
-    if (url) {
-        isRemoteAction = true;
-        
-        const videoWrapper = document.querySelector('.video-wrapper');
-        videoWrapper.innerHTML = `
-            <video id="video-player" controls class="glass-video">
-                <source src="${url}" type="video/mp4">
-            </video>
-            <div class="video-overlay"></div>
-        `;
-        
-        const newVideo = document.getElementById('video-player');
-        bindVideoEvents(newVideo);
-        
-        newVideo.addEventListener('loadedmetadata', () => {
-            newVideo.play().catch(e => {});
-        });
-        
-        socket.emit('change_video', { room_id: roomId, video_url: url });
-        setTimeout(() => { isRemoteAction = false; }, 500);
-    }
-}
-
-// ========== ПОИСК ВИДЕО (KODIK) ==========
-window.searchVideo = function() {
-    const query = document.getElementById('search-query').value;
-    if (!query.trim()) return;
-    
-    const resultsDiv = document.getElementById('search-results');
-    resultsDiv.style.display = 'block';
-    resultsDiv.innerHTML = '<div class="search-result-item">⏳ Поиск...</div>';
-    
-    fetch('/api/search_video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.error) {
-            resultsDiv.innerHTML = `<div class="search-result-item" style="color: #ff6b6b;">❌ ${data.error}</div>`;
-            return;
-        }
-        if (!data.results || data.results.length === 0) {
-            resultsDiv.innerHTML = '<div class="search-result-item">😔 Ничего не найдено</div>';
-            return;
-        }
-        
-        resultsDiv.innerHTML = '';
-        data.results.forEach(videoItem => {
-            const item = document.createElement('div');
-            item.className = 'search-result-item';
-            item.onclick = () => {
-                isRemoteAction = true;
-                
-                const videoWrapper = document.querySelector('.video-wrapper');
-                videoWrapper.innerHTML = `
-                    <video id="video-player" controls class="glass-video">
-                        <source src="${videoItem.video_url}" type="video/mp4">
-                    </video>
-                    <div class="video-overlay"></div>
-                `;
-                
-                const newVideo = document.getElementById('video-player');
-                bindVideoEvents(newVideo);
-                
-                newVideo.addEventListener('loadedmetadata', () => {
-                    newVideo.play().catch(e => {});
-                });
-                
-                socket.emit('change_video', { room_id: roomId, video_url: videoItem.video_url });
-                resultsDiv.style.display = 'none';
-                setTimeout(() => { isRemoteAction = false; }, 500);
-            };
-            
-            const minutes = Math.floor(videoItem.duration / 60);
-            const seconds = String(videoItem.duration % 60).padStart(2, '0');
-            
-            item.innerHTML = `
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <img src="${videoItem.thumbnail}" style="width:50px; height:35px; object-fit:cover; border-radius:4px;" onerror="this.style.display='none'">
-                    <div>
-                        <strong>${videoItem.title}</strong><br>
-                        <small>⏱ ${minutes}:${seconds}</small>
-                    </div>
-                </div>
-            `;
-            resultsDiv.appendChild(item);
-        });
-    });
-};
-
-// Оставляем старую функцию для обратной совместимости
-window.searchVK = window.searchVideo;
-
-// ========== СИНХРОНИЗАЦИЯ ==========
-socket.on('play_sync', (data) => {
-    isRemoteAction = true;
-    clearTimeout(remoteActionTimer);
-    
-    const vid = document.getElementById('video-player');
-    if (vid) {
-        if (Math.abs(vid.currentTime - data.current_time) > 0.5) {
-            vid.currentTime = data.current_time;
-        }
-        vid.play().catch(e => {});
-    }
-    
-    remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
-});
-
-socket.on('pause_sync', (data) => {
-    isRemoteAction = true;
-    clearTimeout(remoteActionTimer);
-    
-    const vid = document.getElementById('video-player');
-    if (vid) {
-        vid.currentTime = data.current_time;
-        vid.pause();
-    }
-    
-    remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
-});
-
-socket.on('seek_sync', (data) => {
-    isRemoteAction = true;
-    clearTimeout(remoteActionTimer);
-    
-    const vid = document.getElementById('video-player');
-    if (vid) {
-        vid.currentTime = data.current_time;
-        if (vid.paused) {
-            vid.play().catch(e => {});
-        }
-    }
-    
-    remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
-});
-
-socket.on('video_change_sync', (data) => {
-    isRemoteAction = true;
-    clearTimeout(remoteActionTimer);
-    
-    const videoWrapper = document.querySelector('.video-wrapper');
-    videoWrapper.innerHTML = `
-        <video id="video-player" controls class="glass-video">
-            <source src="${data.video_url}" type="video/mp4">
-        </video>
-        <div class="video-overlay"></div>
-    `;
-    
-    const newVideo = document.getElementById('video-player');
-    bindVideoEvents(newVideo);
-    
-    newVideo.addEventListener('loadedmetadata', () => {
-        newVideo.play().catch(e => {});
-        remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
-    });
-});
-
 socket.on('connect', () => {
     console.log('✅ WebSocket connected');
     socket.emit('join', { room_id: roomId });
+});
+
+socket.on('disconnect', () => {
+    console.log('❌ WebSocket disconnected');
 });
 </script>
 {% endblock %}
