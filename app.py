@@ -70,7 +70,7 @@ import os  # ← добавьте в начало файла, если ещё н
 class SoundCloudParser:
     def __init__(self):
         self.client_ids = [
-            "a3e059563d7f33715b3b5e7e7d7c1e8c",
+            "DAXAfBNYHaWC72FM2w6Jvh84R96RfMYP",
             "2t9loNQH90kzJcsFCODdigxfp325aq4z",
         ]
         self.base_url = "https://api-v2.soundcloud.com"
