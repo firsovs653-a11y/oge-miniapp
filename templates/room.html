@@ -220,71 +220,27 @@
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
-const socket = io(window.location.origin, { 
-    transports: ['polling', 'websocket'],
-    upgrade: true,
-    rememberUpgrade: true,
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000
-});
-
-const roomId = {{ room.id }};
-const currentUsername = '{{ current_user.username }}';
-const chatMessages = document.getElementById('chat-messages');
-
-// ===== АУДИОПЛЕЕР =====
+// ========== АУДИОПЛЕЕР ==========
 const audio = document.getElementById('audio-player');
 const trackTitle = document.getElementById('track-title');
 const trackArtist = document.getElementById('track-artist');
 const trackThumbnail = document.getElementById('track-thumbnail');
 
-let isRemoteAction = false;
-let remoteActionTimer = null;
-
-// ===== ЧАТ =====
-let firstMessage = true;
-let typingTimeout = null;
-let isTyping = false;
-let typingUsers = new Set();
-
-socket.emit('join', { room_id: roomId });
-
-// ========== ПРИВЯЗКА СОБЫТИЙ АУДИОПЛЕЕРА ==========
-function bindAudioEvents(audioElement) {
-    audioElement.addEventListener('play', () => {
-        if (!isRemoteAction) {
-            socket.emit('play', { room_id: roomId, current_time: audioElement.currentTime });
-        }
-    });
-    
-    audioElement.addEventListener('pause', () => {
-        if (!isRemoteAction) {
-            socket.emit('pause', { room_id: roomId, current_time: audioElement.currentTime });
-        }
-    });
-    
-    audioElement.addEventListener('seeked', () => {
-        if (!isRemoteAction) {
-            socket.emit('seek', { room_id: roomId, current_time: audioElement.currentTime });
-        }
-    });
-}
-
-bindAudioEvents(audio);
-
-// ========== УПРАВЛЕНИЕ ПЛЕЕРОМ ==========
 function playAudio() {
-    audio.play();
-    socket.emit('play', { room_id: roomId, current_time: audio.currentTime });
+    if (audio) {
+        audio.play();
+        socket.emit('play', { room_id: roomId, current_time: audio.currentTime });
+    }
 }
 
 function pauseAudio() {
-    audio.pause();
-    socket.emit('pause', { room_id: roomId, current_time: audio.currentTime });
+    if (audio) {
+        audio.pause();
+        socket.emit('pause', { room_id: roomId, current_time: audio.currentTime });
+    }
 }
 
-// ========== ПОИСК МУЗЫКИ (SOUNDCLOUD) ==========
+// ========== ПОИСК МУЗЫКИ ==========
 window.searchMusic = function() {
     const query = document.getElementById('search-query').value;
     if (!query.trim()) return;
@@ -300,10 +256,6 @@ window.searchMusic = function() {
     })
     .then(res => res.json())
     .then(data => {
-        if (data.error) {
-            resultsDiv.innerHTML = `<div class="search-result-item" style="color: #ff6b6b;">❌ ${data.error}</div>`;
-            return;
-        }
         if (!data.results || data.results.length === 0) {
             resultsDiv.innerHTML = '<div class="search-result-item">😔 Ничего не найдено</div>';
             return;
@@ -314,31 +266,20 @@ window.searchMusic = function() {
             const item = document.createElement('div');
             item.className = 'search-result-item';
             item.onclick = () => {
-                isRemoteAction = true;
-                
-                // Обновляем информацию о треке
-                trackTitle.textContent = track.title;
-                trackArtist.textContent = track.artist;
-                
+                if (audio) {
+                    audio.src = track.audio_url;
+                    audio.load();
+                    audio.play();
+                }
+                if (trackTitle) trackTitle.textContent = track.title;
+                if (trackArtist) trackArtist.textContent = track.artist;
                 if (track.thumbnail) {
                     trackThumbnail.src = track.thumbnail;
                     trackThumbnail.style.display = 'block';
-                } else {
-                    trackThumbnail.style.display = 'none';
                 }
-                
-                // Загружаем трек
-                audio.src = track.audio_url;
-                audio.load();
-                
-                audio.addEventListener('loadedmetadata', function onLoaded() {
-                    audio.removeEventListener('loadedmetadata', onLoaded);
-                    audio.play().catch(e => console.log('Autoplay blocked'));
-                });
                 
                 socket.emit('change_video', { room_id: roomId, video_url: track.audio_url });
                 resultsDiv.style.display = 'none';
-                setTimeout(() => { isRemoteAction = false; }, 500);
             };
             
             const minutes = Math.floor(track.duration / 60);
@@ -346,223 +287,47 @@ window.searchMusic = function() {
             
             item.innerHTML = `
                 <div style="display:flex; align-items:center; gap:10px;">
-                    ${track.thumbnail ? `<img src="${track.thumbnail}" style="width:40px; height:40px; border-radius:4px; object-fit:cover;">` : '<span style="font-size:24px;">🎵</span>'}
+                    <span style="font-size:24px;">🎵</span>
                     <div style="flex:1;">
-                        <strong>${escapeHtml(track.title)}</strong><br>
-                        <small>${escapeHtml(track.artist)} • ${minutes}:${seconds}</small>
+                        <strong>${track.title}</strong><br>
+                        <small>${track.artist} • ${minutes}:${seconds}</small>
                     </div>
                 </div>
             `;
             resultsDiv.appendChild(item);
         });
-    })
-    .catch(err => {
-        console.error('Search error:', err);
-        resultsDiv.innerHTML = '<div class="search-result-item" style="color: #ff6b6b;">❌ Ошибка поиска</div>';
     });
 };
 
-// Оставляем для обратной совместимости
-window.searchVK = window.searchMusic;
-
-// ========== РУЧНОЙ ВВОД ССЫЛКИ ==========
-function changeVideo() {
-    const url = document.getElementById('video-url').value;
-    if (url) {
-        isRemoteAction = true;
-        audio.src = url;
-        audio.load();
-        
-        trackTitle.textContent = 'Пользовательский трек';
-        trackArtist.textContent = 'Прямая ссылка';
-        trackThumbnail.style.display = 'none';
-        
-        audio.addEventListener('loadedmetadata', function onLoaded() {
-            audio.removeEventListener('loadedmetadata', onLoaded);
-            audio.play().catch(e => {});
-        });
-        
-        socket.emit('change_video', { room_id: roomId, video_url: url });
-        setTimeout(() => { isRemoteAction = false; }, 500);
-    }
-}
-
 // ========== СИНХРОНИЗАЦИЯ ==========
 socket.on('play_sync', (data) => {
-    isRemoteAction = true;
-    clearTimeout(remoteActionTimer);
-    
-    if (Math.abs(audio.currentTime - data.current_time) > 0.5) {
+    if (audio) {
         audio.currentTime = data.current_time;
+        audio.play();
     }
-    audio.play().catch(e => {});
-    
-    remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
 });
 
 socket.on('pause_sync', (data) => {
-    isRemoteAction = true;
-    clearTimeout(remoteActionTimer);
-    
-    audio.currentTime = data.current_time;
-    audio.pause();
-    
-    remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 300);
+    if (audio) {
+        audio.currentTime = data.current_time;
+        audio.pause();
+    }
 });
 
 socket.on('seek_sync', (data) => {
-    isRemoteAction = true;
-    clearTimeout(remoteActionTimer);
-    
-    audio.currentTime = data.current_time;
-    
-    if (audio.paused) {
-        audio.play().catch(e => {});
+    if (audio) {
+        audio.currentTime = data.current_time;
     }
-    
-    remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
 });
 
 socket.on('video_change_sync', (data) => {
-    isRemoteAction = true;
-    clearTimeout(remoteActionTimer);
-    
-    audio.src = data.video_url;
-    audio.load();
-    
-    trackTitle.textContent = 'Трек из комнаты';
-    trackArtist.textContent = 'Синхронизировано';
-    trackThumbnail.style.display = 'none';
-    
-    audio.addEventListener('loadedmetadata', function onLoaded() {
-        audio.removeEventListener('loadedmetadata', onLoaded);
-        audio.play().catch(e => {});
-        remoteActionTimer = setTimeout(() => { isRemoteAction = false; }, 500);
-    });
-});
-
-// ========== ЧАТ ==========
-function sendMessage() {
-    const input = document.getElementById('message-input');
-    const message = input.value.trim();
-    
-    if (message) {
-        clearTimeout(typingTimeout);
-        isTyping = false;
-        socket.emit('stop_typing', { room_id: roomId });
-        
-        socket.emit('send_message', { room_id: roomId, message: message });
-        input.value = '';
-        input.focus();
+    if (audio) {
+        audio.src = data.video_url;
+        audio.load();
+        audio.play();
+        trackTitle.textContent = 'Трек из комнаты';
+        trackArtist.textContent = 'Синхронизировано';
     }
-}
-
-document.getElementById('message-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-});
-
-document.getElementById('message-input').addEventListener('input', () => {
-    if (!isTyping) {
-        isTyping = true;
-        socket.emit('typing', { room_id: roomId });
-    }
-    
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-        isTyping = false;
-        socket.emit('stop_typing', { room_id: roomId });
-    }, 1000);
-});
-
-socket.on('user_typing', (data) => {
-    if (data.username !== currentUsername) {
-        typingUsers.add(data.username);
-        updateTypingDisplay();
-    }
-});
-
-socket.on('user_stop_typing', (data) => {
-    if (data.username !== currentUsername) {
-        typingUsers.delete(data.username);
-        updateTypingDisplay();
-    }
-});
-
-function updateTypingDisplay() {
-    let typingEl = document.getElementById('typing-indicator');
-    
-    if (typingUsers.size === 0) {
-        if (typingEl) typingEl.remove();
-        return;
-    }
-    
-    if (!typingEl) {
-        typingEl = document.createElement('div');
-        typingEl.id = 'typing-indicator';
-        typingEl.className = 'typing-indicator';
-        chatMessages.appendChild(typingEl);
-    }
-    
-    const usersArray = Array.from(typingUsers);
-    let text = '';
-    
-    if (usersArray.length === 1) {
-        text = `${usersArray[0]} печатает`;
-    } else if (usersArray.length === 2) {
-        text = `${usersArray[0]} и ${usersArray[1]} печатают`;
-    } else {
-        text = `${usersArray.length} человека печатают`;
-    }
-    
-    typingEl.innerHTML = `
-        <span class="typing-text">${text}</span>
-        <span class="typing-dots">
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
-        </span>
-    `;
-    
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-socket.on('new_message', (data) => {
-    typingUsers.delete(data.username);
-    updateTypingDisplay();
-    
-    if (firstMessage) {
-        chatMessages.innerHTML = '';
-        firstMessage = false;
-    }
-    
-    const messageEl = document.createElement('div');
-    messageEl.className = 'chat-message' + (data.username === currentUsername ? ' own' : '');
-    
-    messageEl.innerHTML = `
-        <div class="message-header">
-            <span class="message-username">${escapeHtml(data.username)}</span>
-            <span class="message-time">${data.timestamp}</span>
-        </div>
-        <div class="message-text">${escapeHtml(data.message)}</div>
-    `;
-    
-    chatMessages.appendChild(messageEl);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-});
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-socket.on('connect', () => {
-    console.log('✅ WebSocket connected');
-    socket.emit('join', { room_id: roomId });
-});
-
-socket.on('disconnect', () => {
-    console.log('❌ WebSocket disconnected');
 });
 </script>
 {% endblock %}
