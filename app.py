@@ -11,7 +11,6 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite, ChatMessage
-from flask import Response
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -23,51 +22,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Уберите эти строки:
-# import eventlet
-# eventlet.monkey_patch()
-
-# Оставьте:
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
 # ==================== JSON ЛОГ ПОЛЬЗОВАТЕЛЕЙ ====================
 USERS_DATA_FILE = 'users_data.json'
-@app.route('/api/stream', methods=['GET'])
-def stream_audio():
-    url = request.args.get('url')
-    if not url:
-        return '', 400
-    
-    headers = {
-        "Authorization": "OAuth 2-321262-1413040017-RgNQZzVGdriAP",
-        "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36",
-        "Origin": "https://soundcloud.com",
-        "Referer": "https://soundcloud.com/"
-    }
-    
-    try:
-        resp = requests.get(url, headers=headers, stream=True, timeout=15)
-        
-        # Проксируем ответ
-        def generate():
-            for chunk in resp.iter_content(chunk_size=8192):
-                if chunk:
-                    yield chunk
-        
-        return Response(
-            generate(),
-            status=resp.status_code,
-            content_type=resp.headers.get('Content-Type', 'audio/mpeg'),
-            headers={
-                'Accept-Ranges': 'bytes',
-                'Cache-Control': 'no-cache'
-            }
-        )
-    except Exception as e:
-        print(f"Stream error: {e}")
-        return '', 500
 
 def save_user_data(username, email, password_hash):
-    """Сохраняет данные пользователя в JSON-файл"""
     try:
         with open(USERS_DATA_FILE, 'r', encoding='utf-8') as f:
             users = json.load(f)
@@ -87,21 +47,7 @@ def save_user_data(username, email, password_hash):
     
     print(f"✅ Данные сохранены в {USERS_DATA_FILE}")
 
-# ==================== VK API ====================
-VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
-
-# ==================== VK VIDEO SEARCH ====================
-
-
-# ==================== VK API ====================
-VK_ACCESS_TOKEN = os.environ.get('VK_ACCESS_TOKEN', '')
-
-# ==================== ПОИСК МУЗЫКИ SOUNDCLOUD ====================
-
-# ==================== ТЕСТОВЫЕ ТРЕКИ ====================
 # ==================== ПАРСЕР SOUNDCLOUD ====================
-  # ← добавьте в начало файла, если ещё нет
-
 class SoundCloudParser:
     def __init__(self):
         self.client_id = "DAXAfBNYHaWC72FM2w6Jvh84R96RfMYP"
@@ -115,12 +61,10 @@ class SoundCloudParser:
             "Origin": "https://soundcloud.com",
             "Referer": "https://soundcloud.com/"
         }
-        
-        self.proxies = None
 
     def search(self, query, limit=10):
         print(f"🔍 Поиск SoundCloud: '{query}'")
-
+    
         url = f"{self.base_url}/search"
         params = {
             "q": query,
@@ -131,44 +75,45 @@ class SoundCloudParser:
             "app_version": self.app_version,
             "app_locale": "en"
         }
-
+    
         try:
             resp = requests.get(url, params=params, headers=self.headers, timeout=10)
-
+        
             if resp.status_code != 200:
                 print(f"❌ Ошибка API: {resp.status_code}")
                 return self._fallback_tracks()
-
+        
             data = resp.json()
             results = []
-
+        
             for track in data.get("collection", []):
                 stream_url = None
                 media = track.get("media", {})
                 transcodings = media.get("transcodings", [])
-
-                # Ищем ТОЛЬКО progressive MP3
+            
                 for t in transcodings:
                     if t.get("format", {}).get("protocol") == "progressive":
                         stream_url = t.get("url")
                         break
-
+            
+                if not stream_url and transcodings:
+                    stream_url = transcodings[0].get("url")
+            
                 if stream_url:
                     audio_url = f"{stream_url}?client_id={self.client_id}"
-                    
+                
                     results.append({
                         'id': track.get('id'),
                         'title': track.get('title', 'Без названия')[:100],
                         'artist': track.get('user', {}).get('username', 'Неизвестен')[:50],
                         'audio_url': audio_url,
-                        'permalink_url': track.get('permalink_url'),  # ← ДОБАВЬТЕ ЭТО
                         'duration': track.get('duration', 0) // 1000,
                         'thumbnail': track.get('artwork_url') or ''
                     })
-
-            print(f"✅ Найдено MP3 треков: {len(results)}")
+        
+            print(f"✅ Найдено треков: {len(results)}")
             return results if results else self._fallback_tracks()
-
+        
         except Exception as e:
             print(f"❌ Ошибка поиска: {e}")
             return self._fallback_tracks()
@@ -185,6 +130,7 @@ class SoundCloudParser:
             }
         ]
 
+# ==================== API МАРШРУТЫ ====================
 @app.route('/api/search_music', methods=['POST'])
 @login_required
 def search_music():
@@ -193,12 +139,6 @@ def search_music():
     parser = SoundCloudParser()
     results = parser.search(query, limit=10)
     return jsonify({'results': results})
-
-
-# ==================== ПОИСК МУЗЫКИ ====================
-
-
-# ==================== ОСТАВЛЯЕМ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ====================
 
 # ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 def generate_room_code():
@@ -239,7 +179,6 @@ def register():
         db.session.add(user)
         db.session.commit()
         
-        # Сохраняем в JSON
         save_user_data(username, email, password_hash)
         
         flash('Регистрация успешна! Войдите')
@@ -276,13 +215,8 @@ def friends():
 def search():
     q = request.args.get('q', '').strip()
     users = []
-    
     if q:
-        users = User.query.filter(
-            User.username.contains(q), 
-            User.id != current_user.id
-        ).all()
-    
+        users = User.query.filter(User.username.contains(q), User.id != current_user.id).all()
     return render_template('search.html', users=users, query=q)
 
 @app.route('/profile/<username>')
@@ -459,7 +393,7 @@ def leave_room_route(room_id):
     
     return redirect(url_for('rooms'))
 
-# ==================== WEBSOCKET СИНХРОНИЗАЦИЯ ====================
+# ==================== WEBSOCKET ====================
 @socketio.on('join')
 def on_join(data):
     room = str(data['room_id'])
@@ -515,24 +449,7 @@ def on_typing(data):
 def on_stop_typing(data):
     room = str(data['room_id'])
     emit('user_stop_typing', {'username': current_user.username}, room=room, include_self=False)
-@app.route('/vk_callback')
-def vk_callback():
-    code = request.args.get('code')
-    if code:
-        return f"""
-        <!DOCTYPE html>
-        <html>
-        <head><title>VK Auth - Sinchro</title></head>
-        <body style="background:#0a0a1a; color:#fff; font-family:sans-serif; padding:40px; text-align:center;">
-            <h2>✅ Код авторизации получен!</h2>
-            <p>Скопируйте этот код и вставьте в терминал, где запущен скрипт:</p>
-            <textarea rows="3" cols="80" readonly style="font-family:monospace; padding:10px; border-radius:8px;">{code}</textarea>
-            <p style="margin-top:20px; color:#888;">Можно закрыть эту страницу</p>
-        </body>
-        </html>
-        """
-    else:
-        return "<h2>❌ Ошибка: код не найден в URL</h2>"
+
 # ==================== ЗАПУСК ====================
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
