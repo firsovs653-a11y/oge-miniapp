@@ -326,5 +326,62 @@ socket.on('connect', () => {
     console.log('✅ WebSocket connected');
     socket.emit('join', { room_id: roomId });
 });
+// Принудительно вешаем функцию на кнопку при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    const searchBtn = document.querySelector('button[onclick="searchMusic()"]');
+    if (searchBtn) {
+        searchBtn.onclick = function() {
+            const query = document.getElementById('search-query').value;
+            if (!query.trim()) return;
+            
+            const resultsDiv = document.getElementById('search-results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = '<div class="search-result-item">⏳ Поиск...</div>';
+            
+            fetch('/api/search_music', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.results || data.results.length === 0) {
+                    resultsDiv.innerHTML = '<div class="search-result-item">😔 Ничего не найдено</div>';
+                    return;
+                }
+                
+                resultsDiv.innerHTML = '';
+                data.results.forEach(track => {
+                    const item = document.createElement('div');
+                    item.className = 'search-result-item';
+                    
+                    const minutes = Math.floor(track.duration / 60);
+                    const seconds = String(track.duration % 60).padStart(2, '0');
+                    
+                    item.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            ${track.thumbnail ? `<img src="${track.thumbnail}" style="width:40px; height:40px; border-radius:4px;">` : '🎵'}
+                            <div>
+                                <strong>${track.title}</strong><br>
+                                <small>${track.artist} • ${minutes}:${seconds}</small>
+                            </div>
+                        </div>
+                    `;
+                    
+                    item.onclick = () => {
+                        if (typeof loadTrack === 'function') {
+                            loadTrack(track.permalink_url);
+                        }
+                        document.getElementById('track-title').textContent = track.title;
+                        document.getElementById('track-artist').textContent = track.artist;
+                        resultsDiv.style.display = 'none';
+                    };
+                    
+                    resultsDiv.appendChild(item);
+                });
+            });
+        };
+    }
+});
 <script>
 {% endblock %}
