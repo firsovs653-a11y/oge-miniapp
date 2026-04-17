@@ -105,8 +105,9 @@ class SoundCloudParser:
                     results.append({
                         'id': track.get('id'),
                         'title': track.get('title', 'Без названия')[:100],
-                        'artist': track.get('user', {}).get('username', 'Неизвестен')[:50],
+                        'artist': track.get('user', {}).get('username', 'Неизвестен')[:50],                    
                         'audio_url': audio_url,
+                        'permalink_url': track.get('permalink_url'),
                         'duration': track.get('duration', 0) // 1000,
                         'thumbnail': track.get('artwork_url') or ''
                     })
