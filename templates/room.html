@@ -4,7 +4,6 @@
 
 {% block content %}
 <div class="room-container">
-    <!-- Левая колонка - АУДИО -->
     <div class="video-section glass-card animate-in">
         <div class="section-header">
             <h1 class="glow-text">🎵 {{ room.name }}</h1>
@@ -20,11 +19,10 @@
             </div>
         </div>
         
-        <!-- Поиск музыки -->
         <div class="search-section">
             <div class="input-group">
                 <input type="text" id="search-query" placeholder="🔍 Найти трек..." class="glass-input">
-                <button onclick="searchMusic()" class="btn btn-primary btn-icon">
+                <button id="search-button" class="btn btn-primary btn-icon">
                     <span>🎵</span>
                     <span>Найти</span>
                 </button>
@@ -32,338 +30,182 @@
             <div id="search-results" class="search-results glass-dropdown" style="display: none;"></div>
         </div>
         
-        <!-- Аудиоплеер -->
-        <!-- SoundCloud Widget -->
         <iframe id="soundcloud-player" width="100%" height="166" scrolling="no" frameborder="no" allow="autoplay" style="margin: 20px 0; border-radius: 12px;"></iframe>
-
-<!-- Информация о треке -->
+        
         <div class="track-info-display" style="padding: 10px; text-align: center;">
             <img id="track-thumbnail" src="" style="width: 100px; height: 100px; border-radius: 8px; object-fit: cover; margin-bottom: 10px; display: none;">
-            <h3 id="track-title" style="color: #fff; margin: 0; font-size: 16px;">Выберите трек</h3>
-            <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0; font-size: 14px;"></p>
-        </div>
-                    
-        <!-- Управление -->
-        <div class="video-controls">
-            <button onclick="playAudio()" class="btn btn-play btn-icon pulse-animation">
-                <span>▶</span>
-                <span>Play</span>
-            </button>
-            <button onclick="pauseAudio()" class="btn btn-pause btn-icon">
-                <span>⏸</span>
-                <span>Pause</span>
-            </button>
+            <h3 id="track-title" style="color: #fff; margin: 0;">Выберите трек</h3>
+            <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0;"></p>
         </div>
         
-        <!-- Участники -->
+        <div class="video-controls">
+            <button id="play-button" class="btn btn-play btn-icon">▶ Play</button>
+            <button id="pause-button" class="btn btn-pause btn-icon">⏸ Pause</button>
+        </div>
+        
         <div class="members-section">
-            <h3 class="section-title">
-                <span>👥</span>
-                <span>Участники</span>
-                <span class="member-count">{{ members|length }}</span>
-            </h3>
+            <h3 class="section-title">👥 Участники ({{ members|length }})</h3>
             <div class="members-grid">
                 {% for member in members %}
-                <span class="member-tag glass-tag">
-                    <span class="member-avatar">👤</span>
-                    <span>{{ member.user.username }}</span>
-                </span>
+                <span class="member-tag glass-tag">👤 {{ member.user.username }}</span>
                 {% endfor %}
             </div>
         </div>
     </div>
     
-    <!-- Правая колонка - чат -->
     <div class="chat-section glass-card animate-in-delay">
-        <div class="chat-header">
-            <h3 class="section-title">
-                <span>💬</span>
-                <span>Чат комнаты</span>
-                <span class="pulse-dot"></span>
-            </h3>
-        </div>
-        
-        <div id="chat-messages" class="chat-messages">
-            <div class="chat-empty">
-                <span class="empty-icon">💭</span>
-                <p>Нет сообщений</p>
-                <p class="empty-hint">Напишите первое сообщение!</p>
-            </div>
-        </div>
-        
+        <div class="chat-header"><h3>💬 Чат комнаты</h3></div>
+        <div id="chat-messages" class="chat-messages"><div class="chat-empty">💭 Нет сообщений</div></div>
         <div class="chat-input-wrapper">
             <div class="chat-input-group">
-                <input type="text" id="message-input" placeholder="Напишите сообщение..." maxlength="500" class="glass-input">
-                <button onclick="sendMessage()" class="btn btn-send btn-icon">
-                    <span>➤</span>
-                </button>
+                <input type="text" id="message-input" placeholder="Напишите сообщение..." class="glass-input">
+                <button id="send-message" class="btn btn-send btn-icon">➤</button>
             </div>
         </div>
     </div>
 </div>
 
 <style>
-    .room-container { display: grid; grid-template-columns: 1fr 380px; gap: 20px; max-width: 1600px; margin: 0 auto; animation: containerFadeIn 0.6s ease-out; }
-    @keyframes containerFadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-in { animation: slideInLeft 0.5s ease-out; }
-    .animate-in-delay { animation: slideInRight 0.5s ease-out 0.1s both; }
-    @keyframes slideInLeft { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
-    @keyframes slideInRight { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
-    .glass-card { background: rgba(20, 20, 35, 0.25); backdrop-filter: blur(25px) saturate(200%); -webkit-backdrop-filter: blur(25px) saturate(200%); border-radius: 28px; padding: 24px; border: 0.5px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); transition: all 0.3s ease; }
-    .glass-card:hover { border-color: rgba(245, 197, 24, 0.15); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); }
-    .section-header { margin-bottom: 24px; }
-    .glow-text { color: rgba(255, 255, 255, 0.95); font-size: 28px; font-weight: 700; margin: 0 0 12px 0; text-shadow: 0 2px 15px rgba(245, 197, 24, 0.3); letter-spacing: -0.5px; animation: textGlow 3s ease-in-out infinite; }
-    @keyframes textGlow { 0%, 100% { text-shadow: 0 2px 15px rgba(245, 197, 24, 0.2); } 50% { text-shadow: 0 2px 25px rgba(245, 197, 24, 0.4); } }
-    .room-badges { display: flex; gap: 10px; flex-wrap: wrap; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 0.5px solid rgba(255, 255, 255, 0.1); border-radius: 30px; color: rgba(255, 255, 255, 0.8); font-size: 13px; font-weight: 500; transition: all 0.3s ease; }
-    .badge:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(245, 197, 24, 0.3); transform: translateY(-1px); }
-    .code-badge { color: #f5c518; border-color: rgba(245, 197, 24, 0.3); }
-    .search-section { margin-bottom: 16px; }
-    .input-group { display: flex; gap: 10px; margin-bottom: 12px; }
-    .glass-input { flex: 1; padding: 14px 18px; background: rgba(15, 15, 25, 0.4); backdrop-filter: blur(15px); border: 0.5px solid rgba(255, 255, 255, 0.1); border-radius: 40px; color: #fff; font-size: 14px; outline: none; transition: all 0.3s ease; }
-    .glass-input:focus { border-color: rgba(245, 197, 24, 0.5); box-shadow: 0 0 0 3px rgba(245, 197, 24, 0.1); transform: scale(1.01); }
-    .glass-input::placeholder { color: rgba(255, 255, 255, 0.35); }
-    .btn-icon { display: flex; align-items: center; gap: 8px; padding: 14px 20px; white-space: nowrap; transition: all 0.3s ease; }
-    .btn-icon:hover { transform: translateY(-2px); }
-    .pulse-animation { animation: buttonPulse 2s ease-in-out infinite; }
-    @keyframes buttonPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 197, 24, 0.2); } 50% { box-shadow: 0 0 0 8px rgba(245, 197, 24, 0); } }
-    .video-controls { display: flex; gap: 12px; margin: 20px 0; }
-    .video-controls .btn { flex: 1; padding: 14px; font-size: 15px; }
-    .members-section { margin-top: 24px; padding-top: 20px; border-top: 0.5px solid rgba(255, 255, 255, 0.06); }
-    .section-title { display: flex; align-items: center; gap: 8px; margin: 0 0 16px 0; color: rgba(255, 255, 255, 0.9); font-size: 16px; font-weight: 500; }
-    .member-count { margin-left: auto; background: rgba(245, 197, 24, 0.15); padding: 2px 10px; border-radius: 20px; font-size: 13px; color: #f5c518; }
-    .members-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-    .glass-tag { display: flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(10px); border: 0.5px solid rgba(255, 255, 255, 0.08); border-radius: 30px; color: rgba(255, 255, 255, 0.85); font-size: 13px; transition: all 0.3s ease; animation: tagFadeIn 0.4s ease-out; }
-    @keyframes tagFadeIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
-    .glass-tag:hover { background: rgba(245, 197, 24, 0.1); border-color: rgba(245, 197, 24, 0.2); transform: translateY(-1px); }
-    .chat-section { display: flex; flex-direction: column; height: calc(100vh - 100px); min-height: 600px; }
-    .chat-header { padding-bottom: 16px; border-bottom: 0.5px solid rgba(255, 255, 255, 0.06); }
-    .pulse-dot { width: 8px; height: 8px; background: #5cff85; border-radius: 50%; margin-left: auto; animation: dotPulse 1.5s ease-in-out infinite; }
-    @keyframes dotPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
-    .chat-messages { flex: 1; overflow-y: auto; padding: 20px 4px; display: flex; flex-direction: column; gap: 12px; }
-    .chat-empty { text-align: center; padding: 40px 20px; color: rgba(255, 255, 255, 0.35); }
-    .empty-icon { font-size: 48px; display: block; margin-bottom: 12px; opacity: 0.5; }
-    .empty-hint { font-size: 12px; margin-top: 4px; }
-    .chat-message { display: flex; flex-direction: column; gap: 4px; animation: messageSlideIn 0.3s ease-out; }
-    @keyframes messageSlideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-    .message-header { display: flex; align-items: center; gap: 8px; }
-    .message-username { color: #f5c518; font-weight: 600; font-size: 13px; }
-    .message-time { color: rgba(255, 255, 255, 0.35); font-size: 11px; }
-    .message-text { color: rgba(255, 255, 255, 0.9); font-size: 14px; line-height: 1.5; word-break: break-word; background: rgba(255, 255, 255, 0.05); padding: 10px 14px; border-radius: 18px; display: inline-block; max-width: 85%; backdrop-filter: blur(10px); border: 0.5px solid rgba(255, 255, 255, 0.06); }
-    .chat-message.own { align-items: flex-end; }
-    .chat-message.own .message-text { background: rgba(245, 197, 24, 0.15); border-color: rgba(245, 197, 24, 0.2); color: #fff; }
-    .typing-indicator { display: flex; align-items: center; gap: 8px; padding: 8px 0; animation: typingFadeIn 0.3s ease-out; }
-    @keyframes typingFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-    .typing-text { color: rgba(255, 255, 255, 0.5); font-size: 13px; font-style: italic; }
-    .typing-dots { display: flex; align-items: center; gap: 3px; }
-    .typing-dots .dot { width: 5px; height: 5px; background: #f5c518; border-radius: 50%; animation: dotBounce 1.4s ease-in-out infinite; }
-    .typing-dots .dot:nth-child(1) { animation-delay: 0s; }
-    .typing-dots .dot:nth-child(2) { animation-delay: 0.2s; }
-    .typing-dots .dot:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes dotBounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-6px); opacity: 1; } }
-    .chat-input-wrapper { padding-top: 16px; border-top: 0.5px solid rgba(255, 255, 255, 0.06); }
-    .chat-input-group { display: flex; gap: 10px; }
-    .chat-input-group .glass-input { flex: 1; }
-    .btn-send { width: 52px; height: 52px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; transition: all 0.3s ease; }
-    .btn-send:hover { transform: scale(1.05) rotate(5deg); }
-    .search-results { margin-top: 8px; max-height: 300px; overflow-y: auto; animation: dropdownSlide 0.3s ease-out; }
-    @keyframes dropdownSlide { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-    .glass-dropdown { background: rgba(20, 20, 35, 0.5); backdrop-filter: blur(30px); border: 0.5px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 8px; }
-    .search-result-item { padding: 12px 16px; border-radius: 12px; cursor: pointer; color: rgba(255, 255, 255, 0.9); transition: all 0.2s ease; }
-    .search-result-item:hover { background: rgba(245, 197, 24, 0.1); }
-    @media (max-width: 900px) { .room-container { grid-template-columns: 1fr; } .chat-section { height: 450px; min-height: auto; } }
-    @media (max-width: 600px) { .input-group { flex-direction: column; } .btn-icon { justify-content: center; } .glow-text { font-size: 22px; } }
+    .room-container { display: grid; grid-template-columns: 1fr 380px; gap: 20px; max-width: 1600px; margin: 0 auto; }
+    .glass-card { background: rgba(20, 20, 35, 0.25); backdrop-filter: blur(25px); border-radius: 28px; padding: 24px; border: 0.5px solid rgba(255, 255, 255, 0.08); }
+    .glow-text { color: white; font-size: 28px; margin: 0 0 12px; }
+    .input-group { display: flex; gap: 10px; }
+    .glass-input { flex: 1; padding: 14px; background: rgba(15,15,25,0.4); border: 0.5px solid rgba(255,255,255,0.1); border-radius: 40px; color: white; }
+    .btn { padding: 14px 20px; border-radius: 40px; background: #f5c518; color: black; border: none; cursor: pointer; }
 </style>
 
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<!-- ВАЖНО: Библиотеки подключаются ДО нашего кода -->
 <script src="https://w.soundcloud.com/player/api.js"></script>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
 <script>
-const socket = io(window.location.origin, { 
-    transports: ['polling', 'websocket'],
-    upgrade: true,
-    reconnection: true
-});
-
-const roomId = {{ room.id }};
-const currentUsername = '{{ current_user.username }}';
-const chatMessages = document.getElementById('chat-messages');
-
-// ========== АУДИОПЛЕЕР ==========
-// ========== SOUNDCLOUD WIDGET ==========
-let scWidget = null;
-const trackTitle = document.getElementById('track-title');
-const trackArtist = document.getElementById('track-artist');
-const trackThumbnail = document.getElementById('track-thumbnail');
-
-// Инициализация виджета
-const iframe = document.getElementById('soundcloud-player');
-scWidget = SC.Widget(iframe);
-
-let isWidgetReady = false;
-scWidget.bind(SC.Widget.Events.READY, function() {
-    isWidgetReady = true;
-    console.log('✅ SoundCloud виджет готов');
-});
-
-let isRemoteAction = false;
-let firstMessage = true;
-
-socket.emit('join', { room_id: roomId });
-
-function playAudio() {
-    if (scWidget && isWidgetReady) {
-        scWidget.play();
-    }
-}
-
-function pauseAudio() {
-    if (scWidget && isWidgetReady) {
-        scWidget.pause();
-    }
-}
-
-function loadTrack(permalinkUrl) {
-    if (scWidget && isWidgetReady) {
-        scWidget.load(permalinkUrl, { auto_play: true });
-    } else {
-        setTimeout(() => loadTrack(permalinkUrl), 500);
-    }
-}
-
-// ========== ПОИСК МУЗЫКИ ==========
-window.searchMusic = function() {
-    const query = document.getElementById('search-query').value;
-    if (!query.trim()) return;
+// Ждём полной загрузки страницы
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ DOM загружен');
     
+    // ========== ЭЛЕМЕНТЫ ==========
+    const searchBtn = document.getElementById('search-button');
+    const playBtn = document.getElementById('play-button');
+    const pauseBtn = document.getElementById('pause-button');
+    const sendBtn = document.getElementById('send-message');
+    
+    const searchInput = document.getElementById('search-query');
     const resultsDiv = document.getElementById('search-results');
-    resultsDiv.style.display = 'block';
-    resultsDiv.innerHTML = '<div class="search-result-item">⏳ Поиск...</div>';
+    const trackTitle = document.getElementById('track-title');
+    const trackArtist = document.getElementById('track-artist');
+    const trackThumbnail = document.getElementById('track-thumbnail');
+    const messageInput = document.getElementById('message-input');
+    const chatMessages = document.getElementById('chat-messages');
     
-    fetch('/api/search_music', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (!data.results || data.results.length === 0) {
-            resultsDiv.innerHTML = '<div class="search-result-item">😔 Ничего не найдено</div>';
-            return;
-        }
+    // ========== SOCKET.IO ==========
+    const socket = io(window.location.origin, { transports: ['polling', 'websocket'] });
+    const roomId = {{ room.id }};
+    const currentUsername = '{{ current_user.username }}';
+    
+    socket.emit('join', { room_id: roomId });
+    
+    // ========== SOUNDCLOUD WIDGET ==========
+    const iframe = document.getElementById('soundcloud-player');
+    const scWidget = SC.Widget(iframe);
+    
+    scWidget.bind(SC.Widget.Events.READY, function() {
+        console.log('✅ Виджет готов');
+    });
+    
+    playBtn.addEventListener('click', () => scWidget.play());
+    pauseBtn.addEventListener('click', () => scWidget.pause());
+    
+    function loadTrack(permalinkUrl) {
+        console.log('Загружаем:', permalinkUrl);
+        scWidget.load(permalinkUrl, { auto_play: true });
+    }
+    
+    // ========== ПОИСК ==========
+    searchBtn.addEventListener('click', function() {
+        const query = searchInput.value.trim();
+        if (!query) return;
         
-        resultsDiv.innerHTML = '';
-        data.results.forEach(track => {
-            const item = document.createElement('div');
-            item.className = 'search-result-item';
+        console.log('🔍 Поиск:', query);
+        resultsDiv.style.display = 'block';
+        resultsDiv.innerHTML = '<div class="search-result-item">⏳ Поиск...</div>';
+        
+        fetch('/api/search_music', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query })
+        })
+        .then(res => res.json())
+        .then(data => {
+            console.log('📦 Ответ:', data);
             
-            const minutes = Math.floor(track.duration / 60);
-            const seconds = String(track.duration % 60).padStart(2, '0');
+            if (!data.results || data.results.length === 0) {
+                resultsDiv.innerHTML = '<div class="search-result-item">😔 Ничего не найдено</div>';
+                return;
+            }
             
-            item.innerHTML = `
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:24px;">🎵</span>
-                    <div style="flex:1;">
-                        <strong>${escapeHtml(track.title)}</strong><br>
-                        <small>${escapeHtml(track.artist)} • ${minutes}:${seconds}</small>
+            resultsDiv.innerHTML = '';
+            data.results.forEach(track => {
+                const item = document.createElement('div');
+                item.className = 'search-result-item';
+                item.style.cssText = 'padding:12px; cursor:pointer; color:white; border-bottom:1px solid rgba(255,255,255,0.1);';
+                
+                const minutes = Math.floor(track.duration / 60);
+                const seconds = String(track.duration % 60).padStart(2, '0');
+                
+                item.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:24px;">🎵</span>
+                        <div>
+                            <strong>${track.title}</strong><br>
+                            <small>${track.artist} • ${minutes}:${seconds}</small>
+                        </div>
                     </div>
-                </div>
-            `;
-            
-            item.onclick = () => {
-    // Загружаем трек в виджет
-                if (track.permalink_url) {
-                    loadTrack(track.permalink_url);
-                }
-    
-                if (trackTitle) trackTitle.textContent = track.title;
-                if (trackArtist) trackArtist.textContent = track.artist;
-                if (track.thumbnail) {
-                    trackThumbnail.src = track.thumbnail;
-                    trackThumbnail.style.display = 'block';
-                } else {
-                    trackThumbnail.style.display = 'none';
-                }
-                resultsDiv.style.display = 'none';
-        };
-            
-            resultsDiv.appendChild(item);
+                `;
+                
+                item.addEventListener('click', () => {
+                    if (track.permalink_url) {
+                        loadTrack(track.permalink_url);
+                    }
+                    trackTitle.textContent = track.title;
+                    trackArtist.textContent = track.artist;
+                    if (track.thumbnail) {
+                        trackThumbnail.src = track.thumbnail;
+                        trackThumbnail.style.display = 'block';
+                    }
+                    resultsDiv.style.display = 'none';
+                });
+                
+                resultsDiv.appendChild(item);
+            });
+        })
+        .catch(err => {
+            console.error('❌ Ошибка:', err);
+            resultsDiv.innerHTML = '<div class="search-result-item">❌ Ошибка поиска</div>';
         });
     });
-};
-
-// ========== СИНХРОНИЗАЦИЯ ==========
-socket.on('play_sync', (data) => {
-    if (audio) {
-        audio.currentTime = data.current_time;
-        audio.play();
-    }
-});
-
-socket.on('pause_sync', (data) => {
-    if (audio) {
-        audio.currentTime = data.current_time;
-        audio.pause();
-    }
-});
-
-socket.on('seek_sync', (data) => {
-    if (audio) {
-        audio.currentTime = data.current_time;
-    }
-});
-
-socket.on('video_change_sync', (data) => {
-    if (audio) {
-        audio.src = data.video_url;
-        audio.load();
-        audio.play();
-        if (trackTitle) trackTitle.textContent = 'Трек из комнаты';
-        if (trackArtist) trackArtist.textContent = 'Синхронизировано';
-        if (trackThumbnail) trackThumbnail.style.display = 'none';
-    }
-});
-
-// ========== ЧАТ ==========
-function sendMessage() {
-    const input = document.getElementById('message-input');
-    const message = input.value.trim();
-    if (message) {
-        socket.emit('send_message', { room_id: roomId, message: message });
-        input.value = '';
-    }
-}
-
-document.getElementById('message-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-});
-
-socket.on('new_message', (data) => {
-    if (firstMessage) {
-        chatMessages.innerHTML = '';
-        firstMessage = false;
-    }
-    const el = document.createElement('div');
-    el.className = 'chat-message' + (data.username === currentUsername ? ' own' : '');
-    el.innerHTML = `
-        <div class="message-header">
-            <span class="message-username">${escapeHtml(data.username)}</span>
-            <span class="message-time">${data.timestamp}</span>
-        </div>
-        <div class="message-text">${escapeHtml(data.message)}</div>
-    `;
-    chatMessages.appendChild(el);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-});
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-socket.on('connect', () => {
-    console.log('✅ WebSocket connected');
-    socket.emit('join', { room_id: roomId });
+    
+    // ========== ЧАТ ==========
+    sendBtn.addEventListener('click', function() {
+        const message = messageInput.value.trim();
+        if (message) {
+            socket.emit('send_message', { room_id: roomId, message: message });
+            messageInput.value = '';
+        }
+    });
+    
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendBtn.click();
+    });
+    
+    socket.on('new_message', (data) => {
+        const el = document.createElement('div');
+        el.style.cssText = 'color:white; padding:8px;';
+        el.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
+        chatMessages.appendChild(el);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
+    
+    console.log('✅ Всё готово');
 });
 </script>
 {% endblock %}
