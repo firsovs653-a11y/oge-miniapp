@@ -33,17 +33,16 @@
         </div>
         
         <!-- Аудиоплеер -->
-        <div class="audio-player-wrapper" style="padding: 20px; text-align: center;">
-            <img id="track-thumbnail" src="" style="width: 200px; height: 200px; border-radius: 12px; object-fit: cover; margin-bottom: 15px; display: none;">
-            <div id="track-info" style="margin-bottom: 15px;">
-                <h3 id="track-title" style="color: #fff; margin: 0;">Выберите трек</h3>
-                <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0;"></p>
-            </div>
-            <audio id="audio-player" controls style="width: 100%;">
-                <source id="audio-source" src="" type="audio/mpeg">
-            </audio>
+        <!-- SoundCloud Widget -->
+        <iframe id="soundcloud-player" width="100%" height="166" scrolling="no" frameborder="no" allow="autoplay" style="margin: 20px 0; border-radius: 12px;"></iframe>
+
+<!-- Информация о треке -->
+        <div class="track-info-display" style="padding: 10px; text-align: center;">
+            <img id="track-thumbnail" src="" style="width: 100px; height: 100px; border-radius: 8px; object-fit: cover; margin-bottom: 10px; display: none;">
+            <h3 id="track-title" style="color: #fff; margin: 0; font-size: 16px;">Выберите трек</h3>
+            <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0; font-size: 14px;"></p>
         </div>
-        
+                    
         <!-- Управление -->
         <div class="video-controls">
             <button onclick="playAudio()" class="btn btn-play btn-icon pulse-animation">
@@ -177,6 +176,7 @@
 </style>
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="https://w.soundcloud.com/player/api.js"></script>
 <script>
 const socket = io(window.location.origin, { 
     transports: ['polling', 'websocket'],
@@ -189,10 +189,21 @@ const currentUsername = '{{ current_user.username }}';
 const chatMessages = document.getElementById('chat-messages');
 
 // ========== АУДИОПЛЕЕР ==========
-const audio = document.getElementById('audio-player');
+// ========== SOUNDCLOUD WIDGET ==========
+let scWidget = null;
 const trackTitle = document.getElementById('track-title');
 const trackArtist = document.getElementById('track-artist');
 const trackThumbnail = document.getElementById('track-thumbnail');
+
+// Инициализация виджета
+const iframe = document.getElementById('soundcloud-player');
+scWidget = SC.Widget(iframe);
+
+let isWidgetReady = false;
+scWidget.bind(SC.Widget.Events.READY, function() {
+    isWidgetReady = true;
+    console.log('✅ SoundCloud виджет готов');
+});
 
 let isRemoteAction = false;
 let firstMessage = true;
@@ -200,16 +211,22 @@ let firstMessage = true;
 socket.emit('join', { room_id: roomId });
 
 function playAudio() {
-    if (audio) {
-        audio.play();
-        socket.emit('play', { room_id: roomId, current_time: audio.currentTime });
+    if (scWidget && isWidgetReady) {
+        scWidget.play();
     }
 }
 
 function pauseAudio() {
-    if (audio) {
-        audio.pause();
-        socket.emit('pause', { room_id: roomId, current_time: audio.currentTime });
+    if (scWidget && isWidgetReady) {
+        scWidget.pause();
+    }
+}
+
+function loadTrack(permalinkUrl) {
+    if (scWidget && isWidgetReady) {
+        scWidget.load(permalinkUrl, { auto_play: true });
+    } else {
+        setTimeout(() => loadTrack(permalinkUrl), 500);
     }
 }
 
@@ -253,11 +270,11 @@ window.searchMusic = function() {
             `;
             
             item.onclick = () => {
-                if (audio) {
-                    audio.src = track.audio_url;
-                    audio.load();
-                    audio.play().catch(e => console.log('Autoplay blocked:', e));
+    // Загружаем трек в виджет
+                if (track.permalink_url) {
+                    loadTrack(track.permalink_url);
                 }
+    
                 if (trackTitle) trackTitle.textContent = track.title;
                 if (trackArtist) trackArtist.textContent = track.artist;
                 if (track.thumbnail) {
@@ -266,10 +283,8 @@ window.searchMusic = function() {
                 } else {
                     trackThumbnail.style.display = 'none';
                 }
-                
-                socket.emit('change_video', { room_id: roomId, video_url: track.audio_url });
                 resultsDiv.style.display = 'none';
-            };
+        };
             
             resultsDiv.appendChild(item);
         });
