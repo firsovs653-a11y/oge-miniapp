@@ -32,16 +32,14 @@
             <div id="search-results" class="search-results glass-dropdown" style="display: none;"></div>
         </div>
         
-        <!-- Аудиоплеер -->
-        <div class="audio-player-wrapper" style="padding: 20px; text-align: center;">
-            <img id="track-thumbnail" src="" style="width: 200px; height: 200px; border-radius: 12px; object-fit: cover; margin-bottom: 15px; display: none;">
-            <div id="track-info" style="margin-bottom: 15px;">
-                <h3 id="track-title" style="color: #fff; margin: 0;">Выберите трек</h3>
-                <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0;"></p>
-            </div>
-            <audio id="audio-player" controls style="width: 100%;">
-                <source id="audio-source" src="" type="audio/mpeg">
-            </audio>
+        <!-- SoundCloud Widget -->
+        <iframe id="soundcloud-player" width="100%" height="166" scrolling="no" frameborder="no" allow="autoplay" style="margin: 20px 0; border-radius: 12px;"></iframe>
+        
+        <!-- Информация о треке -->
+        <div class="track-info-display" style="padding: 10px; text-align: center;">
+            <img id="track-thumbnail" src="" style="width: 100px; height: 100px; border-radius: 8px; object-fit: cover; margin-bottom: 10px; display: none;">
+            <h3 id="track-title" style="color: #fff; margin: 0; font-size: 16px;">Выберите трек</h3>
+            <p id="track-artist" style="color: rgba(255,255,255,0.6); margin: 5px 0 0; font-size: 14px;"></p>
         </div>
         
         <!-- Управление -->
@@ -176,7 +174,10 @@
     @media (max-width: 600px) { .input-group { flex-direction: column; } .btn-icon { justify-content: center; } .glow-text { font-size: 22px; } }
 </style>
 
+<!-- SoundCloud Widget API -->
+<script src="https://w.soundcloud.com/player/api.js"></script>
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
 <script>
 const socket = io(window.location.origin, { 
     transports: ['polling', 'websocket'],
@@ -188,29 +189,27 @@ const roomId = {{ room.id }};
 const currentUsername = '{{ current_user.username }}';
 const chatMessages = document.getElementById('chat-messages');
 
-// ========== АУДИОПЛЕЕР ==========
-const audio = document.getElementById('audio-player');
+// ========== SOUNDCLOUD WIDGET ==========
+const iframe = document.getElementById('soundcloud-player');
+const scWidget = SC.Widget(iframe);
 const trackTitle = document.getElementById('track-title');
 const trackArtist = document.getElementById('track-artist');
 const trackThumbnail = document.getElementById('track-thumbnail');
 
-let isRemoteAction = false;
 let firstMessage = true;
 
 socket.emit('join', { room_id: roomId });
 
 function playAudio() {
-    if (audio) {
-        audio.play();
-        socket.emit('play', { room_id: roomId, current_time: audio.currentTime });
-    }
+    scWidget.play();
 }
 
 function pauseAudio() {
-    if (audio) {
-        audio.pause();
-        socket.emit('pause', { room_id: roomId, current_time: audio.currentTime });
-    }
+    scWidget.pause();
+}
+
+function loadTrack(permalinkUrl) {
+    scWidget.load(permalinkUrl, { auto_play: true });
 }
 
 // ========== ПОИСК МУЗЫКИ ==========
@@ -235,6 +234,7 @@ window.searchMusic = function() {
         }
         
         resultsDiv.innerHTML = '';
+        
         data.results.forEach(track => {
             const item = document.createElement('div');
             item.className = 'search-result-item';
@@ -244,7 +244,7 @@ window.searchMusic = function() {
             
             item.innerHTML = `
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:24px;">🎵</span>
+                    ${track.thumbnail ? `<img src="${track.thumbnail}" style="width:40px; height:40px; border-radius:4px; object-fit:cover;">` : '<span style="font-size:24px;">🎵</span>'}
                     <div style="flex:1;">
                         <strong>${escapeHtml(track.title)}</strong><br>
                         <small>${escapeHtml(track.artist)} • ${minutes}:${seconds}</small>
@@ -253,11 +253,8 @@ window.searchMusic = function() {
             `;
             
             item.onclick = () => {
-                if (audio) {
-                    audio.src = track.audio_url;
-                    audio.load();
-                    audio.play().catch(e => console.log('Autoplay blocked:', e));
-                }
+                loadTrack(track.permalink_url);
+                
                 if (trackTitle) trackTitle.textContent = track.title;
                 if (trackArtist) trackArtist.textContent = track.artist;
                 if (track.thumbnail) {
@@ -267,7 +264,6 @@ window.searchMusic = function() {
                     trackThumbnail.style.display = 'none';
                 }
                 
-                socket.emit('change_video', { room_id: roomId, video_url: track.audio_url });
                 resultsDiv.style.display = 'none';
             };
             
@@ -275,38 +271,6 @@ window.searchMusic = function() {
         });
     });
 };
-
-// ========== СИНХРОНИЗАЦИЯ ==========
-socket.on('play_sync', (data) => {
-    if (audio) {
-        audio.currentTime = data.current_time;
-        audio.play();
-    }
-});
-
-socket.on('pause_sync', (data) => {
-    if (audio) {
-        audio.currentTime = data.current_time;
-        audio.pause();
-    }
-});
-
-socket.on('seek_sync', (data) => {
-    if (audio) {
-        audio.currentTime = data.current_time;
-    }
-});
-
-socket.on('video_change_sync', (data) => {
-    if (audio) {
-        audio.src = data.video_url;
-        audio.load();
-        audio.play();
-        if (trackTitle) trackTitle.textContent = 'Трек из комнаты';
-        if (trackArtist) trackArtist.textContent = 'Синхронизировано';
-        if (trackThumbnail) trackThumbnail.style.display = 'none';
-    }
-});
 
 // ========== ЧАТ ==========
 function sendMessage() {
