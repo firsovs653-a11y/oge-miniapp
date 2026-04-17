@@ -197,19 +197,31 @@ const trackArtist = document.getElementById('track-artist');
 const trackThumbnail = document.getElementById('track-thumbnail');
 
 let firstMessage = true;
+let isWidgetReady = false;
+
+// === ВАЖНАЯ ПРАВКА: ЖДЁМ ГОТОВНОСТИ ВИДЖЕТА ===
+scWidget.bind(SC.Widget.Events.READY, function() {
+    isWidgetReady = true;
+    console.log('✅ SoundCloud виджет готов к работе');
+});
 
 socket.emit('join', { room_id: roomId });
 
 function playAudio() {
-    scWidget.play();
+    if (isWidgetReady) scWidget.play();
 }
 
 function pauseAudio() {
-    scWidget.pause();
+    if (isWidgetReady) scWidget.pause();
 }
 
 function loadTrack(permalinkUrl) {
-    scWidget.load(permalinkUrl, { auto_play: true });
+    if (isWidgetReady) {
+        scWidget.load(permalinkUrl, { auto_play: true });
+    } else {
+        console.log('⏳ Виджет ещё не готов, пробуем загрузить через секунду...');
+        setTimeout(() => loadTrack(permalinkUrl), 1000);
+    }
 }
 
 // ========== ПОИСК МУЗЫКИ ==========
@@ -314,5 +326,4 @@ socket.on('connect', () => {
     console.log('✅ WebSocket connected');
     socket.emit('join', { room_id: roomId });
 });
-</script>
 {% endblock %}
