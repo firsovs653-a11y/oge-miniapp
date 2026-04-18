@@ -8,7 +8,6 @@ class BandcampParser:
         self.base_url = "https://bandcamp.com"
         self.session = requests.Session()
         
-        # Заголовки, как у настоящего браузера
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
@@ -24,7 +23,6 @@ class BandcampParser:
             "Cache-Control": "max-age=0"
         })
         
-        # Получаем начальные куки
         self._init_session()
 
     def _init_session(self):
@@ -40,12 +38,10 @@ class BandcampParser:
         print(f"🔍 Поиск Bandcamp: '{query}'")
         
         try:
-            # Сначала ищем через API (более надёжно)
             api_results = self._search_api(query, limit)
             if api_results:
                 return api_results
             
-            # Если API не сработал — парсим HTML
             return self._search_html(query, limit)
             
         except Exception as e:
@@ -66,6 +62,9 @@ class BandcampParser:
                 if item.get('type') == 't':
                     track_url = item.get('url')
                     if track_url:
+                        # Исправляем URL если нужно
+                        if not track_url.startswith('http'):
+                            track_url = self.base_url + track_url
                         audio_url = self._get_audio_url(track_url)
                         if audio_url:
                             results.append({
@@ -96,24 +95,27 @@ class BandcampParser:
             
             results = []
             
-            # Ищем треки
             for item in soup.find_all('li', class_='searchresult')[:limit]:
                 link = item.find('a')
                 if not link:
                     continue
                 
-                track_url = self.base_url + link.get('href')
+                href = link.get('href')
+                
+                # Исправляем URL
+                if href.startswith('http'):
+                    track_url = href
+                else:
+                    track_url = self.base_url + href
+                
                 title = link.text.strip()
                 
-                # Исполнитель
                 artist_elem = item.find('div', class_='subhead')
                 artist = artist_elem.text.strip() if artist_elem else 'Неизвестен'
                 
-                # Обложка
                 img = item.find('img')
                 thumbnail = img.get('src') if img else ''
                 
-                # Получаем аудио
                 audio_url = self._get_audio_url(track_url)
                 if audio_url:
                     results.append({
