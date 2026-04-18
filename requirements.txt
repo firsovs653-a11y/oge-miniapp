@@ -9,3 +9,5 @@ beautifulsoup4==4.12.2
 lxml==4.9.3
 setuptools>=65.5.0
 anicli-api==0.5.11
+beautifulsoup4==4.12.2
+lxml==4.9.3
