@@ -11,6 +11,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from flask_socketio import SocketIO, join_room, emit
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, User, FriendRequest, Room, RoomMember, RoomInvite, ChatMessage
+from bandcamp_parser import BandcampParser
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key')
@@ -47,97 +48,13 @@ def save_user_data(username, email, password_hash):
     
     print(f"✅ Данные сохранены в {USERS_DATA_FILE}")
 
-# ==================== ПАРСЕР SOUNDCLOUD ====================
-class SoundCloudParser:
-    def __init__(self):
-        self.client_id = "DAXAfBNYHaWC72FM2w6Jvh84R96RfMYP"
-        self.app_version = "1776236574"
-        self.base_url = "https://api-v2.soundcloud.com"
-        
-        self.headers = {
-            "Authorization": "OAuth 2-321262-1413040017-RgNQZzVGdriAP",
-            "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Mobile Safari/537.36",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "Origin": "https://soundcloud.com",
-            "Referer": "https://soundcloud.com/"
-        }
-
-    def search(self, query, limit=10):
-        print(f"🔍 Поиск SoundCloud: '{query}'")
-    
-        url = f"{self.base_url}/search"
-        params = {
-            "q": query,
-            "client_id": self.client_id,
-            "limit": limit,
-            "offset": 0,
-            "linked_partitioning": 1,
-            "app_version": self.app_version,
-            "app_locale": "en"
-        }
-    
-        try:
-            resp = requests.get(url, params=params, headers=self.headers, timeout=10)
-        
-            if resp.status_code != 200:
-                print(f"❌ Ошибка API: {resp.status_code}")
-                return self._fallback_tracks()
-        
-            data = resp.json()
-            results = []
-        
-            for track in data.get("collection", []):
-                stream_url = None
-                media = track.get("media", {})
-                transcodings = media.get("transcodings", [])
-            
-                for t in transcodings:
-                    if t.get("format", {}).get("protocol") == "progressive":
-                        stream_url = t.get("url")
-                        break
-            
-                if not stream_url and transcodings:
-                    stream_url = transcodings[0].get("url")
-            
-                if stream_url:
-                    audio_url = f"{stream_url}?client_id={self.client_id}"
-                
-                    results.append({
-                        'id': track.get('id'),
-                        'title': track.get('title', 'Без названия')[:100],
-                        'artist': track.get('user', {}).get('username', 'Неизвестен')[:50],                    
-                        'audio_url': audio_url,
-                        'permalink_url': track.get('permalink_url'),
-                        'duration': track.get('duration', 0) // 1000,
-                        'thumbnail': track.get('artwork_url') or ''
-                    })
-        
-            print(f"✅ Найдено треков: {len(results)}")
-            return results if results else self._fallback_tracks()
-        
-        except Exception as e:
-            print(f"❌ Ошибка поиска: {e}")
-            return self._fallback_tracks()
-
-    def _fallback_tracks(self):
-        return [
-            {
-                'id': 1,
-                'title': '🎵 Тестовый трек',
-                'artist': 'Офлайн-режим',
-                'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-                'duration': 368,
-                'thumbnail': ''
-            }
-        ]
-
 # ==================== API МАРШРУТЫ ====================
 @app.route('/api/search_music', methods=['POST'])
 @login_required
 def search_music():
     data = request.get_json()
     query = data.get('query', '').strip()
-    parser = SoundCloudParser()
+    parser = BandcampParser()
     results = parser.search(query, limit=10)
     return jsonify({'results': results})
 
